@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "composite": true,
+    "incremental": true,
+    "jsx": "preserve",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./*"],
+      "@recipai/ai": ["../../packages/ai/src"],
+      "@recipai/recipes": ["../../packages/recipes/src"]
+    },
+    "plugins": [{ "name": "next" }]
+  },
+  "references": [
+    { "path": "../../packages/ai" },
+    { "path": "../../packages/recipes" }
+  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
