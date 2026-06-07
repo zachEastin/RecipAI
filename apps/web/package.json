@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@recipai/ai": "0.1.0",
+    "@recipai/db": "0.1.0",
     "@recipai/recipes": "0.1.0",
     "lucide-react": "^0.468.0",
     "next": "^15.3.4",

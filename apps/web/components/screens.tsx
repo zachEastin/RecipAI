@@ -1,33 +1,16 @@
 import { CalendarCheck, Database, RotateCcw, ShoppingBasket } from "lucide-react";
 
+import type { AiStructuredResult } from "@recipai/ai";
 import { seedRecipes } from "@recipai/recipes";
 
-import { PromptComposer } from "./prompt-composer";
+import { AskClient } from "./ask/ask-client";
 import { RecipeCard } from "./recipe-card";
 import { Button, EmptyState, SectionHeader } from "./ui";
 
 const featuredRecipe = seedRecipes[0]!;
 
 export function AskScreen() {
-  return (
-    <div className="screen-stack">
-      <PromptComposer />
-      <section className="panel">
-        <SectionHeader title="Modify a saved recipe" />
-        <div className="select-recipe-row">
-          <div>
-            <strong>{featuredRecipe.title}</strong>
-            <span>Make it cheaper, faster, spicier, or kid-friendly.</span>
-          </div>
-          <Button variant="secondary">Choose</Button>
-        </div>
-      </section>
-      <section>
-        <SectionHeader title="Recent structured result" />
-        <RecipeCard recipe={featuredRecipe} />
-      </section>
-    </div>
-  );
+  return <AskClient initialResult={sampleAiResult} recipes={seedRecipes} />;
 }
 
 export function LibraryScreen() {
@@ -132,3 +115,25 @@ export function SettingsScreen() {
     </div>
   );
 }
+
+const sampleAiResult: AiStructuredResult = {
+  type: "recipe-result",
+  title: featuredRecipe.title,
+  summary: featuredRecipe.summary,
+  servings: featuredRecipe.servings,
+  totalMinutes: featuredRecipe.prepMinutes + featuredRecipe.cookMinutes,
+  difficulty: "easy",
+  tags: featuredRecipe.tags,
+  ingredients: featuredRecipe.ingredients.map((item) => ({
+    quantity: item.quantity,
+    unit: item.unit,
+    name: item.name,
+    note: item.note
+  })),
+  steps: featuredRecipe.steps.map((item) => ({
+    body: item.body,
+    timerMinutes: item.timerMinutes
+  })),
+  tips: ["Use the yogurt sauce as a quick dip for vegetables on the side."],
+  substitutions: ["Swap rice for quinoa or couscous if that is what you have."]
+};

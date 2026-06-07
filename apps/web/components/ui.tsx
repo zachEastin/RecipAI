@@ -13,7 +13,11 @@ export function Button({
 }
 
 export function Chip({ children }: { children: ReactNode }) {
-  return <button className="chip">{children}</button>;
+  return (
+    <button className="chip" type="button">
+      {children}
+    </button>
+  );
 }
 
 export function TextArea({

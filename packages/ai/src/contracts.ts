@@ -60,6 +60,24 @@ export type AiRunRequest = {
   mode: AiPromptMode;
   prompt: string;
   sourceRecipeId?: string;
+  sourceRecipe?: {
+    title: string;
+    summary: string;
+    servings: number;
+    prepMinutes: number;
+    cookMinutes: number;
+    tags: string[];
+    ingredients: Array<{
+      quantity: number | null;
+      unit: string | null;
+      name: string;
+      note: string | null;
+    }>;
+    steps: Array<{
+      body: string;
+      timerMinutes: number | null;
+    }>;
+  };
 };
 
 export type AiClient = {
