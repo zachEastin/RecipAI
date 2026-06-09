@@ -4,7 +4,7 @@ Last updated: 2026-06-08
 
 ## Current Status
 
-Milestone 1 is implemented. The repo has a runnable mobile-first Next.js shell, SQLite schema, seed recipes, typed AI response contracts, docs, and baseline checks.
+Milestones 1-4 are implemented through meal planning. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, and saved dinner planning.
 
 Completed foundation:
 
@@ -66,19 +66,19 @@ Acceptance:
 
 Goal: assign random saved dinners across a selected date range.
 
-- [ ] Add meal-planning package or module for date-range generation.
-- [ ] Generate one dinner per day for a selected range.
-- [ ] Default planning range to 14 days where useful.
-- [ ] Avoid duplicate recipes within a range when enough recipes exist.
-- [ ] Add lock, reroll one day, reroll unlocked days, clear range, and save plan.
-- [ ] Persist meal plans to SQLite.
-- [ ] Open a planned recipe directly into cooking mode.
+- [x] Add meal-planning package or module for date-range generation.
+- [x] Generate one dinner per day for a selected range.
+- [x] Default planning range to 14 days where useful.
+- [x] Avoid duplicate recipes within a range when enough recipes exist.
+- [x] Add lock, reroll one day, reroll unlocked days, clear range, and save plan.
+- [x] Persist meal plans to SQLite.
+- [x] Open a planned recipe directly into cooking mode.
 
 Acceptance:
 
-- [ ] User can generate, adjust, save, and revisit a dinner plan.
-- [ ] Locked meals survive rerolls.
-- [ ] Planning UI stays comfortable on phone screens.
+- [x] User can generate, adjust, save, and revisit a dinner plan.
+- [x] Locked meals survive rerolls.
+- [x] Planning UI stays comfortable on phone screens.
 
 ## Milestone 5 - Shopping Lists
 

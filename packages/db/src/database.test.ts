@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { migrate } from "./database";
 import { saveAiRun } from "./ai-runs";
 import {
+  clearMealPlanRange,
+  listMealPlanEntries,
+  saveMealPlanEntries,
+  setMealPlanLocked
+} from "./meal-plans";
+import {
   getRecipeById,
   saveRecipe,
   searchRecipes,
@@ -83,6 +89,33 @@ describe("database migrations", () => {
     expect(searchRecipes(db, "sauce")[0]?.id).toBe(recipe.id);
     expect(searchRecipes(db, "family")[0]?.id).toBe(recipe.id);
     expect(updateRecipeFavorite(db, recipe.id, true)?.favorite).toBe(true);
+    db.close();
+  });
+
+  it("saves, locks, and clears meal plan entries", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+    const recipe = saveRecipe(db, {
+      title: "Rice Bowls",
+      summary: "Simple bowls.",
+      servings: 4,
+      prepMinutes: 5,
+      cookMinutes: 20,
+      tags: ["fast"],
+      provenance: "manual",
+      ingredients: [{ quantity: 1, unit: "cup", name: "rice", note: null }],
+      steps: [{ body: "Cook rice.", timerMinutes: 18 }]
+    });
+
+    saveMealPlanEntries(db, [
+      { date: "2026-06-08", recipeId: recipe.id, locked: false },
+      { date: "2026-06-09", recipeId: recipe.id, locked: true }
+    ]);
+
+    expect(listMealPlanEntries(db, "2026-06-08", "2026-06-09")).toHaveLength(2);
+    expect(setMealPlanLocked(db, "2026-06-08", true)?.locked).toBe(true);
+    clearMealPlanRange(db, "2026-06-08", "2026-06-09");
+    expect(listMealPlanEntries(db, "2026-06-08", "2026-06-09")).toHaveLength(0);
     db.close();
   });
 });
