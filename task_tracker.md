@@ -1,6 +1,6 @@
 # RecipAI Task Tracker
 
-Last updated: 2026-06-07
+Last updated: 2026-06-08
 
 ## Current Status
 
@@ -52,9 +52,9 @@ Goal: make stored recipes useful without AI.
 - [x] Add create/edit recipe form.
 - [x] Add rating and favorite flows.
 - [x] Add full-text search over title, summary, tags, and ingredients.
-- [ ] Extend search index to notes and source.
-- [ ] Add filters for favorites, tags, rating, and recent cooking.
-- [ ] Add URL import review screen placeholder, even if parser comes later.
+- [x] Extend search index to notes and source.
+- [x] Add filters for favorites, tags, rating, and recent cooking.
+- [x] Add URL import review screen placeholder, even if parser comes later.
 
 Acceptance:
 

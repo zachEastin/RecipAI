@@ -81,7 +81,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS recipe_search USING fts5(
   recipe_id UNINDEXED,
   title,
   summary,
+  source,
   tags,
-  ingredients
+  ingredients,
+  notes
 );
 `;

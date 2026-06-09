@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { migrate } from "./database";
 import { saveAiRun } from "./ai-runs";
-import { getRecipeById, saveRecipe, searchRecipes, updateRecipeFavorite } from "./recipes";
+import {
+  getRecipeById,
+  saveRecipe,
+  searchRecipes,
+  updateRecipeFavorite
+} from "./recipes";
 
 describe("database migrations", () => {
   it("apply to an in-memory SQLite database", () => {
@@ -56,6 +61,7 @@ describe("database migrations", () => {
     const recipe = saveRecipe(db, {
       title: "Garlic Tomato Pasta",
       summary: "Fast pantry pasta.",
+      source: "https://example.com/family-pasta",
       servings: 4,
       prepMinutes: 5,
       cookMinutes: 15,
@@ -74,6 +80,8 @@ describe("database migrations", () => {
 
     expect(getRecipeById(db, recipe.id)?.title).toBe("Garlic Tomato Pasta");
     expect(searchRecipes(db, "garlic")[0]?.id).toBe(recipe.id);
+    expect(searchRecipes(db, "sauce")[0]?.id).toBe(recipe.id);
+    expect(searchRecipes(db, "family")[0]?.id).toBe(recipe.id);
     expect(updateRecipeFavorite(db, recipe.id, true)?.favorite).toBe(true);
     db.close();
   });

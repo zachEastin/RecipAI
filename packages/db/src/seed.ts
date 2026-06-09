@@ -32,8 +32,8 @@ const insertStep = db.prepare(`
 `);
 
 const rebuildSearch = db.prepare(`
-  INSERT INTO recipe_search (recipe_id, title, summary, tags, ingredients)
-  VALUES (@recipeId, @title, @summary, @tags, @ingredients)
+  INSERT INTO recipe_search (recipe_id, title, summary, source, tags, ingredients, notes)
+  VALUES (@recipeId, @title, @summary, @source, @tags, @ingredients, @notes)
 `);
 
 const seed = db.transaction(() => {
@@ -58,8 +58,13 @@ const seed = db.transaction(() => {
       recipeId: recipe.id,
       title: recipe.title,
       summary: recipe.summary,
+      source: recipe.source ?? "",
       tags: recipe.tags.join(" "),
-      ingredients: recipe.ingredients.map((item) => item.name).join(" ")
+      ingredients: recipe.ingredients.map((item) => item.name).join(" "),
+      notes: [
+        ...recipe.ingredients.map((item) => item.note ?? ""),
+        ...recipe.steps.map((item) => item.body)
+      ].join(" ")
     });
   }
 });

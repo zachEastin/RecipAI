@@ -19,11 +19,11 @@ type EditorState = {
   steps: string;
 };
 
-function stateFromRecipe(recipe?: Recipe): EditorState {
+function stateFromRecipe(recipe?: Recipe, initialSource = ""): EditorState {
   return {
     title: recipe?.title ?? "",
     summary: recipe?.summary ?? "",
-    source: recipe?.source ?? "",
+    source: recipe?.source ?? initialSource,
     servings: String(recipe?.servings ?? 4),
     prepMinutes: String(recipe?.prepMinutes ?? 10),
     cookMinutes: String(recipe?.cookMinutes ?? 20),
@@ -54,9 +54,15 @@ function parseIngredient(line: string) {
   };
 }
 
-export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
+export function RecipeEditor({
+  recipe,
+  initialSource = ""
+}: {
+  recipe?: Recipe;
+  initialSource?: string;
+}) {
   const router = useRouter();
-  const [state, setState] = useState(() => stateFromRecipe(recipe));
+  const [state, setState] = useState(() => stateFromRecipe(recipe, initialSource));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 

@@ -112,6 +112,19 @@ export function searchRecipes(db: Database.Database, query: string): Recipe[] {
   return rows.map((row) => getRecipeById(db, row.id)).filter((recipe) => recipe !== null);
 }
 
+export function listRecipeTags(db: Database.Database): string[] {
+  const rows = db.prepare("SELECT tags_json FROM recipes").all() as Array<{ tags_json: string }>;
+  const tags = new Set<string>();
+
+  for (const row of rows) {
+    for (const tag of JSON.parse(row.tags_json) as string[]) {
+      tags.add(tag);
+    }
+  }
+
+  return [...tags].sort((a, b) => a.localeCompare(b));
+}
+
 export function getRecipeById(db: Database.Database, id: string): Recipe | null {
   const row = db.prepare("SELECT * FROM recipes WHERE id = ?").get(id) as
     | RecipeRow
@@ -185,15 +198,27 @@ function uniqueRecipeId(db: Database.Database, title: string, existingId?: strin
 function rebuildRecipeSearch(db: Database.Database, recipe: Recipe): void {
   db.prepare("DELETE FROM recipe_search WHERE recipe_id = ?").run(recipe.id);
   db.prepare(
-    `INSERT INTO recipe_search (recipe_id, title, summary, tags, ingredients)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO recipe_search (recipe_id, title, summary, source, tags, ingredients, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     recipe.id,
     recipe.title,
     recipe.summary,
+    recipe.source ?? "",
     recipe.tags.join(" "),
     recipe.ingredients.map((item) => item.name).join(" "),
+    [
+      ...recipe.ingredients.map((item) => item.note ?? ""),
+      ...recipe.steps.map((step) => step.body)
+    ].join(" "),
   );
+}
+
+export function rebuildAllRecipeSearch(db: Database.Database): void {
+  db.prepare("DELETE FROM recipe_search").run();
+  for (const recipe of listRecipes(db)) {
+    rebuildRecipeSearch(db, recipe);
+  }
 }
 
 export function saveRecipe(db: Database.Database, input: SaveRecipeInput): Recipe {
@@ -297,6 +322,14 @@ export function updateRecipeFavorite(
 ): Recipe | null {
   db.prepare("UPDATE recipes SET favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(
     favorite ? 1 : 0,
+    id,
+  );
+  return getRecipeById(db, id);
+}
+
+export function markRecipeCooked(db: Database.Database, id: string, cookedAt: string): Recipe | null {
+  db.prepare("UPDATE recipes SET last_cooked_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(
+    cookedAt,
     id,
   );
   return getRecipeById(db, id);

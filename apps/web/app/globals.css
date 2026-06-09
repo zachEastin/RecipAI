@@ -393,6 +393,57 @@ button {
   width: 46px;
 }
 
+.library-secondary-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.library-secondary-actions a {
+  align-items: center;
+  color: var(--primary);
+  display: inline-flex;
+  font-weight: 900;
+  gap: 7px;
+  text-decoration: none;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.filter-bar button,
+.filter-bar label {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--primary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 900;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.filter-bar button[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.filter-bar select {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-weight: 850;
+  outline: 0;
+}
+
 .library-recipe-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -724,6 +775,44 @@ button {
   color: var(--text);
   padding: 11px 12px;
   width: 100%;
+}
+
+.import-form {
+  display: grid;
+  gap: 12px;
+}
+
+.import-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.84rem;
+  font-weight: 850;
+  gap: 6px;
+}
+
+.import-form input {
+  background: #fbfdfb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  min-height: 44px;
+  padding: 11px 12px;
+  width: 100%;
+}
+
+.import-review {
+  display: grid;
+  gap: 12px;
+}
+
+.import-review h2,
+.import-review p {
+  margin: 0;
+}
+
+.import-review p {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .editor-form input:focus,
