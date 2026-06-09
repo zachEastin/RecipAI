@@ -137,8 +137,8 @@ export function ShopClient({
       replaceList(payload.list);
       setStatus(
         payload.list.items.length > 0
-          ? "Generated and saved a shopping list from planned dinners."
-          : "Saved an empty list. Add planned dinners in Plan, then generate again.",
+          ? "Generated and saved a shopping list from planned meals."
+          : "Saved an empty list. Add planned meals in Plan, then generate again.",
       );
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : "Could not generate a shopping list.");
@@ -263,7 +263,7 @@ export function ShopClient({
           <ShoppingBasket aria-hidden="true" size={24} />
           <div>
             <h2>Shopping list</h2>
-            <p>Generate a grouped grocery list from planned dinners.</p>
+            <p>Generate a grouped grocery list from planned meals.</p>
           </div>
         </div>
         <div className="date-range-grid">

@@ -13,6 +13,7 @@ import { openAppDatabase } from "@/lib/server-db";
 
 const entrySchema = z.object({
   date: z.string(),
+  mealSlot: z.enum(["breakfast", "lunch", "dinner"]),
   recipeId: z.string(),
   locked: z.boolean(),
   note: z.string().nullable().optional()
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
   try {
     const entries: SaveMealPlanEntryInput[] = parsed.data.entries.map((entry) => ({
       date: entry.date,
+      mealSlot: entry.mealSlot,
       recipeId: entry.recipeId,
       locked: entry.locked,
       note: entry.note ?? null

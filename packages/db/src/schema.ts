@@ -51,11 +51,13 @@ CREATE TABLE IF NOT EXISTS ai_runs (
 
 CREATE TABLE IF NOT EXISTS meal_plans (
   id TEXT PRIMARY KEY,
-  plan_date TEXT NOT NULL UNIQUE,
+  plan_date TEXT NOT NULL,
+  meal_slot TEXT NOT NULL DEFAULT 'dinner',
   recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
   locked INTEGER NOT NULL DEFAULT 0,
   note TEXT,
-  generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(plan_date, meal_slot)
 );
 
 CREATE TABLE IF NOT EXISTS shopping_lists (

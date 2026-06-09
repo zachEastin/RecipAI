@@ -115,14 +115,67 @@ describe("database migrations", () => {
     });
 
     saveMealPlanEntries(db, [
-      { date: "2026-06-08", recipeId: recipe.id, locked: false },
-      { date: "2026-06-09", recipeId: recipe.id, locked: true }
+      { date: "2026-06-08", mealSlot: "breakfast", recipeId: recipe.id, locked: false },
+      { date: "2026-06-08", mealSlot: "dinner", recipeId: recipe.id, locked: true },
+      { date: "2026-06-09", mealSlot: "dinner", recipeId: recipe.id, locked: true }
     ]);
 
-    expect(listMealPlanEntries(db, "2026-06-08", "2026-06-09")).toHaveLength(2);
-    expect(setMealPlanLocked(db, "2026-06-08", true)?.locked).toBe(true);
+    const entries = listMealPlanEntries(db, "2026-06-08", "2026-06-09");
+    expect(entries).toHaveLength(3);
+    expect(entries.map((entry) => `${entry.date}:${entry.mealSlot}`)).toEqual([
+      "2026-06-08:breakfast",
+      "2026-06-08:dinner",
+      "2026-06-09:dinner"
+    ]);
+    expect(setMealPlanLocked(db, "2026-06-08", "breakfast", true)?.locked).toBe(true);
     clearMealPlanRange(db, "2026-06-08", "2026-06-09");
     expect(listMealPlanEntries(db, "2026-06-08", "2026-06-09")).toHaveLength(0);
+    db.close();
+  });
+
+  it("migrates existing dinner-only meal plans to dinner slots", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE recipes (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        source TEXT,
+        servings INTEGER NOT NULL,
+        prep_minutes INTEGER NOT NULL,
+        cook_minutes INTEGER NOT NULL,
+        rating INTEGER NOT NULL DEFAULT 0,
+        tags_json TEXT NOT NULL,
+        favorite INTEGER NOT NULL DEFAULT 0,
+        last_cooked_at TEXT,
+        image_url TEXT,
+        provenance TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE meal_plans (
+        id TEXT PRIMARY KEY,
+        plan_date TEXT NOT NULL UNIQUE,
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        locked INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO recipes (
+        id, title, summary, servings, prep_minutes, cook_minutes, tags_json, provenance
+      ) VALUES (
+        'recipe_1', 'Rice Bowls', 'Simple bowls.', 4, 5, 20, '[]', 'manual'
+      );
+      INSERT INTO meal_plans (id, plan_date, recipe_id, locked, note)
+      VALUES ('meal_2026-06-08', '2026-06-08', 'recipe_1', 1, 'keep');
+    `);
+
+    migrate(db);
+
+    const entries = listMealPlanEntries(db, "2026-06-08", "2026-06-08");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.mealSlot).toBe("dinner");
+    expect(entries[0]?.locked).toBe(true);
     db.close();
   });
 
@@ -159,8 +212,8 @@ describe("database migrations", () => {
     });
 
     saveMealPlanEntries(db, [
-      { date: "2026-06-08", recipeId: riceBowls.id, locked: false },
-      { date: "2026-06-09", recipeId: tomatoSoup.id, locked: true }
+      { date: "2026-06-08", mealSlot: "breakfast", recipeId: riceBowls.id, locked: false },
+      { date: "2026-06-08", mealSlot: "dinner", recipeId: tomatoSoup.id, locked: true }
     ]);
 
     const list = generateShoppingListFromMealPlan(db, "2026-06-08", "2026-06-09");

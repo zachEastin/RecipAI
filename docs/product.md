@@ -15,8 +15,8 @@ The primary audience is a busy family cook who will reject clunky software. The 
 - Ask AI for a new structured recipe.
 - Pick a saved recipe and ask for changes.
 - Save, rate, find, and cook recipes.
-- Randomly assign saved dinners over a date range.
-- Generate a shopping list from planned dinners, defaulting to 14 days.
+- Randomly assign saved recipes to breakfast, lunch, and dinner over a date range.
+- Generate a shopping list from planned meals, defaulting to 14 days.
 - Run locally with SQLite.
 
 ## Non-Goals

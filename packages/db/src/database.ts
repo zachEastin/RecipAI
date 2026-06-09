@@ -24,7 +24,47 @@ export function openDatabase(databasePath = databasePathFromUrl()): Database.Dat
 
 export function migrate(db: Database.Database): void {
   db.exec(schemaSql);
+  migrateMealPlans(db);
   migrateRecipeSearch(db);
+}
+
+function migrateMealPlans(db: Database.Database): void {
+  const columns = db.prepare("PRAGMA table_info(meal_plans)").all() as Array<{ name: string }>;
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (columnNames.has("meal_slot")) {
+    return;
+  }
+
+  db.transaction(() => {
+    db.exec(`
+      ALTER TABLE meal_plans RENAME TO meal_plans_old;
+
+      CREATE TABLE meal_plans (
+        id TEXT PRIMARY KEY,
+        plan_date TEXT NOT NULL,
+        meal_slot TEXT NOT NULL DEFAULT 'dinner',
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        locked INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(plan_date, meal_slot)
+      );
+
+      INSERT INTO meal_plans (id, plan_date, meal_slot, recipe_id, locked, note, generated_at)
+      SELECT
+        'meal_' || plan_date || '_dinner',
+        plan_date,
+        'dinner',
+        recipe_id,
+        locked,
+        note,
+        generated_at
+      FROM meal_plans_old;
+
+      DROP TABLE meal_plans_old;
+    `);
+  })();
 }
 
 function migrateRecipeSearch(db: Database.Database): void {

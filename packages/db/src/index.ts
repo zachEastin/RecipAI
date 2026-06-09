@@ -15,12 +15,13 @@ export type { SaveRecipeInput } from "./recipes";
 export { saveAiRun, updateAiRunSaveStatus } from "./ai-runs";
 export type { SaveAiRunInput, SavedAiRun } from "./ai-runs";
 export {
+  clearMealPlanSlot,
   clearMealPlanRange,
   listMealPlanEntries,
   saveMealPlanEntries,
   setMealPlanLocked
 } from "./meal-plans";
-export type { MealPlanEntry, SaveMealPlanEntryInput } from "./meal-plans";
+export type { MealPlanEntry, MealSlot, SaveMealPlanEntryInput } from "./meal-plans";
 export {
   addShoppingListItem,
   clearCompletedShoppingListItems,
