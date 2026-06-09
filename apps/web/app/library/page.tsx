@@ -1,10 +1,16 @@
 import { AppShell } from "@/components/app-shell";
-import { LibraryScreen } from "@/components/screens";
+import { LibraryClient } from "@/components/library/library-client";
+import { openAppDatabase } from "@/lib/server-db";
+import { listRecipes } from "@recipai/db";
 
 export default function LibraryPage() {
+  const db = openAppDatabase();
+  const recipes = listRecipes(db);
+  db.close();
+
   return (
     <AppShell active="library">
-      <LibraryScreen />
+      <LibraryClient initialRecipes={recipes} />
     </AppShell>
   );
 }

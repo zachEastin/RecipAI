@@ -92,6 +92,26 @@ export function listRecipes(db: Database.Database): Recipe[] {
   return rows.map((row) => getRecipeById(db, row.id)).filter((recipe) => recipe !== null);
 }
 
+export function searchRecipes(db: Database.Database, query: string): Recipe[] {
+  const trimmed = query.trim();
+
+  if (!trimmed) {
+    return listRecipes(db);
+  }
+
+  const rows = db
+    .prepare(
+      `SELECT r.*
+       FROM recipe_search s
+       JOIN recipes r ON r.id = s.recipe_id
+       WHERE recipe_search MATCH ?
+       ORDER BY rank`,
+    )
+    .all(`${trimmed.replaceAll('"', "")}*`) as RecipeRow[];
+
+  return rows.map((row) => getRecipeById(db, row.id)).filter((recipe) => recipe !== null);
+}
+
 export function getRecipeById(db: Database.Database, id: string): Recipe | null {
   const row = db.prepare("SELECT * FROM recipes WHERE id = ?").get(id) as
     | RecipeRow
@@ -109,4 +129,175 @@ export function getRecipeById(db: Database.Database, id: string): Recipe | null 
     .all(id) as StepRow[];
 
   return mapRecipe(row, ingredients.map(mapIngredient), steps.map(mapStep));
+}
+
+export type SaveRecipeInput = {
+  id?: string;
+  title: string;
+  summary: string;
+  source?: string | null;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  rating?: number;
+  tags: string[];
+  favorite?: boolean;
+  imageUrl?: string | null;
+  provenance: Recipe["provenance"];
+  ingredients: Array<{
+    quantity: number | null;
+    unit: string | null;
+    name: string;
+    note: string | null;
+    groceryCategory?: string;
+  }>;
+  steps: Array<{
+    body: string;
+    timerMinutes: number | null;
+  }>;
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 54);
+}
+
+function uniqueRecipeId(db: Database.Database, title: string, existingId?: string): string {
+  if (existingId) {
+    return existingId;
+  }
+
+  const base = slugify(title) || `recipe-${Date.now()}`;
+  let candidate = base;
+  let counter = 2;
+
+  while (db.prepare("SELECT 1 FROM recipes WHERE id = ?").get(candidate)) {
+    candidate = `${base}-${counter}`;
+    counter += 1;
+  }
+
+  return candidate;
+}
+
+function rebuildRecipeSearch(db: Database.Database, recipe: Recipe): void {
+  db.prepare("DELETE FROM recipe_search WHERE recipe_id = ?").run(recipe.id);
+  db.prepare(
+    `INSERT INTO recipe_search (recipe_id, title, summary, tags, ingredients)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(
+    recipe.id,
+    recipe.title,
+    recipe.summary,
+    recipe.tags.join(" "),
+    recipe.ingredients.map((item) => item.name).join(" "),
+  );
+}
+
+export function saveRecipe(db: Database.Database, input: SaveRecipeInput): Recipe {
+  const id = uniqueRecipeId(db, input.title, input.id);
+
+  const save = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO recipes (
+        id, title, summary, source, servings, prep_minutes, cook_minutes,
+        rating, tags_json, favorite, image_url, provenance, updated_at
+      ) VALUES (
+        @id, @title, @summary, @source, @servings, @prepMinutes, @cookMinutes,
+        @rating, @tagsJson, @favorite, @imageUrl, @provenance, CURRENT_TIMESTAMP
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        title = excluded.title,
+        summary = excluded.summary,
+        source = excluded.source,
+        servings = excluded.servings,
+        prep_minutes = excluded.prep_minutes,
+        cook_minutes = excluded.cook_minutes,
+        rating = excluded.rating,
+        tags_json = excluded.tags_json,
+        favorite = excluded.favorite,
+        image_url = excluded.image_url,
+        provenance = excluded.provenance,
+        updated_at = CURRENT_TIMESTAMP`,
+    ).run({
+      id,
+      title: input.title,
+      summary: input.summary,
+      source: input.source ?? null,
+      servings: input.servings,
+      prepMinutes: input.prepMinutes,
+      cookMinutes: input.cookMinutes,
+      rating: input.rating ?? 0,
+      tagsJson: JSON.stringify(input.tags),
+      favorite: input.favorite ? 1 : 0,
+      imageUrl: input.imageUrl ?? null,
+      provenance: input.provenance
+    });
+
+    db.prepare("DELETE FROM recipe_ingredients WHERE recipe_id = ?").run(id);
+    db.prepare("DELETE FROM recipe_steps WHERE recipe_id = ?").run(id);
+
+    const insertIngredient = db.prepare(
+      `INSERT INTO recipe_ingredients (
+        id, recipe_id, quantity, unit, name, note, grocery_category, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertStep = db.prepare(
+      `INSERT INTO recipe_steps (id, recipe_id, body, timer_minutes, sort_order)
+       VALUES (?, ?, ?, ?, ?)`,
+    );
+
+    input.ingredients.forEach((item, index) => {
+      insertIngredient.run(
+        `${id}-ingredient-${index + 1}`,
+        id,
+        item.quantity,
+        item.unit,
+        item.name,
+        item.note,
+        item.groceryCategory ?? "Other",
+        index + 1,
+      );
+    });
+
+    input.steps.forEach((item, index) => {
+      insertStep.run(`${id}-step-${index + 1}`, id, item.body, item.timerMinutes, index + 1);
+    });
+
+    const recipe = getRecipeById(db, id);
+    if (!recipe) {
+      throw new Error("Recipe save failed.");
+    }
+
+    rebuildRecipeSearch(db, recipe);
+    return recipe;
+  });
+
+  return save();
+}
+
+export function updateRecipeRating(
+  db: Database.Database,
+  id: string,
+  rating: number,
+): Recipe | null {
+  db.prepare("UPDATE recipes SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(
+    rating,
+    id,
+  );
+  return getRecipeById(db, id);
+}
+
+export function updateRecipeFavorite(
+  db: Database.Database,
+  id: string,
+  favorite: boolean,
+): Recipe | null {
+  db.prepare("UPDATE recipes SET favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(
+    favorite ? 1 : 0,
+    id,
+  );
+  return getRecipeById(db, id);
 }

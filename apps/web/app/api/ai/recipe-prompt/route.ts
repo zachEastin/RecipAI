@@ -11,6 +11,8 @@ import {
 } from "@recipai/ai";
 import { getRecipeById, migrate, openDatabase, saveAiRun } from "@recipai/db";
 
+import { loadLocalEnv } from "@/lib/local-env";
+
 const requestSchema = z.object({
   mode: aiPromptModeSchema,
   prompt: z.string().trim().min(3).max(2000),
@@ -18,6 +20,8 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  loadLocalEnv();
+
   const parsed = requestSchema.safeParse(await request.json());
 
   if (!parsed.success) {

@@ -1,6 +1,6 @@
 # RecipAI Task Tracker
 
-Last updated: 2026-06-06
+Last updated: 2026-06-07
 
 ## Current Status
 
@@ -46,20 +46,21 @@ Acceptance:
 
 Goal: make stored recipes useful without AI.
 
-- [ ] Add database query layer for recipe CRUD.
-- [ ] Replace seed-only UI data with SQLite-backed recipe reads.
-- [ ] Add recipe detail screen.
-- [ ] Add create/edit recipe form.
-- [ ] Add rating and favorite flows.
-- [ ] Add full-text search over title, summary, tags, notes, source, and ingredients.
+- [x] Add database query layer for recipe CRUD.
+- [x] Replace Library seed-only UI data with SQLite-backed recipe reads.
+- [x] Add recipe detail screen.
+- [x] Add create/edit recipe form.
+- [x] Add rating and favorite flows.
+- [x] Add full-text search over title, summary, tags, and ingredients.
+- [ ] Extend search index to notes and source.
 - [ ] Add filters for favorites, tags, rating, and recent cooking.
 - [ ] Add URL import review screen placeholder, even if parser comes later.
 
 Acceptance:
 
-- [ ] User can create, edit, rate, favorite, find, and open recipes.
-- [ ] Library is fast and clean on mobile.
-- [ ] Search returns useful results from seeded and manually added recipes.
+- [x] User can create, edit, rate, favorite, find, and open recipes.
+- [x] Library is fast and clean on mobile.
+- [x] Search returns useful results from seeded and manually added recipes.
 
 ## Milestone 4 - Meal Planning
 

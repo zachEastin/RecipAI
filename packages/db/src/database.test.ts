@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { migrate } from "./database";
 import { saveAiRun } from "./ai-runs";
+import { getRecipeById, saveRecipe, searchRecipes, updateRecipeFavorite } from "./recipes";
 
 describe("database migrations", () => {
   it("apply to an in-memory SQLite database", () => {
@@ -45,6 +46,35 @@ describe("database migrations", () => {
 
     expect(run.id).toMatch(/^ai_/);
     expect(run.structuredResponse.title).toBe("Rice Dinner");
+    db.close();
+  });
+
+  it("creates, searches, and favorites recipes", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+
+    const recipe = saveRecipe(db, {
+      title: "Garlic Tomato Pasta",
+      summary: "Fast pantry pasta.",
+      servings: 4,
+      prepMinutes: 5,
+      cookMinutes: 15,
+      rating: 4,
+      tags: ["pasta", "fast"],
+      provenance: "manual",
+      ingredients: [
+        { quantity: 8, unit: "oz", name: "pasta", note: null },
+        { quantity: 2, unit: "cloves", name: "garlic", note: null }
+      ],
+      steps: [
+        { body: "Boil pasta.", timerMinutes: 10 },
+        { body: "Toss with garlic tomato sauce.", timerMinutes: null }
+      ]
+    });
+
+    expect(getRecipeById(db, recipe.id)?.title).toBe("Garlic Tomato Pasta");
+    expect(searchRecipes(db, "garlic")[0]?.id).toBe(recipe.id);
+    expect(updateRecipeFavorite(db, recipe.id, true)?.favorite).toBe(true);
     db.close();
   });
 });

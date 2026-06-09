@@ -30,6 +30,7 @@ body {
 
 button,
 textarea,
+input,
 select {
   font: inherit;
 }
@@ -334,6 +335,136 @@ button {
   gap: 12px;
 }
 
+.library-toolbar {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+}
+
+.search-form {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 46px;
+  padding: 0 8px 0 12px;
+}
+
+.search-form svg {
+  color: var(--muted);
+}
+
+.search-form input {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  min-width: 0;
+  outline: 0;
+}
+
+.search-form button,
+.icon-action,
+.text-link {
+  color: var(--primary);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.search-form button {
+  background: var(--primary-soft);
+  border: 0;
+  border-radius: 7px;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.icon-action {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 8px;
+  color: #ffffff;
+  display: inline-flex;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.library-recipe-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.library-card-main {
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.library-card-main h2,
+.library-card-main p {
+  margin: 0;
+}
+
+.library-card-main h2 {
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.library-card-main p {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.library-card-actions {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto 1fr auto;
+  padding-top: 11px;
+}
+
+.icon-toggle {
+  align-items: center;
+  background: var(--surface-strong);
+  border: 1px solid #cfe1d5;
+  border-radius: 8px;
+  color: var(--primary);
+  display: inline-flex;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.icon-toggle-active {
+  background: var(--accent-soft);
+  border-color: #f3c7bd;
+  color: #af3923;
+}
+
+.rating-control {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+}
+
+.rating-control button {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  padding: 5px 3px;
+}
+
 .recipe-card {
   display: grid;
   gap: 12px;
@@ -565,6 +696,104 @@ button {
 .settings-list dd {
   font-weight: 850;
   margin: 0;
+}
+
+.editor-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+}
+
+.editor-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.84rem;
+  font-weight: 850;
+  gap: 6px;
+}
+
+.editor-form input,
+.editor-form textarea {
+  background: #fbfdfb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 11px 12px;
+  width: 100%;
+}
+
+.editor-form input:focus,
+.editor-form textarea:focus {
+  border-color: var(--primary);
+  outline: 3px solid rgba(21, 79, 59, 0.14);
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.detail-hero {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.detail-hero h2,
+.detail-hero p {
+  margin: 0;
+}
+
+.detail-hero h2 {
+  font-size: 1.42rem;
+  line-height: 1.13;
+  margin-top: 8px;
+}
+
+.detail-hero p {
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 8px;
+}
+
+.detail-flags,
+.meta-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-flags span,
+.meta-panel span {
+  align-items: center;
+  background: var(--primary-soft);
+  border-radius: 999px;
+  color: var(--primary);
+  display: inline-flex;
+  font-weight: 850;
+  gap: 5px;
+  padding: 6px 9px;
+}
+
+.meta-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.detail-list {
+  margin-top: 12px;
 }
 
 .bottom-nav {

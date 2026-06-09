@@ -12,7 +12,7 @@ export function databasePathFromUrl(databaseUrl = process.env.DATABASE_URL): str
     throw new Error("Only local file: SQLite DATABASE_URL values are supported.");
   }
 
-  return resolve(process.cwd(), url.slice("file:".length));
+  return resolve(process.env.RECIPAI_WORKSPACE_ROOT ?? process.cwd(), url.slice("file:".length));
 }
 
 export function openDatabase(databasePath = databasePathFromUrl()): Database.Database {
