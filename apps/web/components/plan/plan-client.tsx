@@ -1,6 +1,16 @@
 "use client";
 
-import { CalendarCheck, Lock, LockOpen, RotateCcw, Trash2, Utensils } from "lucide-react";
+import {
+  CalendarCheck,
+  Check,
+  Lock,
+  LockOpen,
+  RotateCcw,
+  Search,
+  Trash2,
+  Utensils,
+  X
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -40,6 +50,43 @@ function formatDate(value: string): string {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function searchableRecipeText(recipe: Recipe): string {
+  return [
+    recipe.title,
+    recipe.summary,
+    recipe.tags.join(" "),
+    recipe.ingredients.map((ingredient) => ingredient.name).join(" ")
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function fuzzyScore(recipe: Recipe, query: string): number {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return recipe.favorite ? 2 : 1;
+  }
+
+  const haystack = searchableRecipeText(recipe);
+  if (haystack.includes(normalized)) {
+    return 100 - haystack.indexOf(normalized);
+  }
+
+  let score = 0;
+  let cursor = 0;
+  for (const char of normalized) {
+    const index = haystack.indexOf(char, cursor);
+    if (index === -1) {
+      return -1;
+    }
+
+    score += Math.max(1, 12 - (index - cursor));
+    cursor = index + 1;
+  }
+
+  return score;
+}
+
 export function PlanClient({
   startDate,
   endDate,
@@ -64,11 +111,34 @@ export function PlanClient({
   const [recipeList, setRecipeList] = useState(recipes);
   const [status, setStatus] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [pickerDate, setPickerDate] = useState<string | null>(null);
+  const [pickerQuery, setPickerQuery] = useState("");
 
   const recipeById = useMemo(
     () => new Map(recipeList.map((recipe) => [recipe.id, recipe])),
     [recipeList],
   );
+  const pickerEntry = pickerDate
+    ? entries.find((entry) => entry.date === pickerDate) ?? null
+    : null;
+  const pickerRecipe = pickerEntry ? recipeById.get(pickerEntry.recipeId) ?? null : null;
+  const pickerRecipes = useMemo(() => {
+    return recipeList
+      .map((recipe) => ({ recipe, score: fuzzyScore(recipe, pickerQuery) }))
+      .filter((item) => item.score >= 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+
+        if (a.recipe.rating !== b.recipe.rating) {
+          return b.recipe.rating - a.recipe.rating;
+        }
+
+        return a.recipe.title.localeCompare(b.recipe.title);
+      })
+      .map((item) => item.recipe);
+  }, [pickerQuery, recipeList]);
 
   async function generate(rerollDates?: string[]) {
     setIsBusy(true);
@@ -164,6 +234,26 @@ export function PlanClient({
         entry.date === date ? { ...entry, locked: !entry.locked } : entry,
       ),
     );
+  }
+
+  function openPicker(date: string) {
+    setPickerDate(date);
+    setPickerQuery("");
+  }
+
+  function closePicker() {
+    setPickerDate(null);
+    setPickerQuery("");
+  }
+
+  function pickRecipe(date: string, recipe: Recipe) {
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.date === date ? { ...entry, recipeId: recipe.id, locked: true } : entry,
+      ),
+    );
+    setStatus(`${recipe.title} picked and locked for ${formatDate(date)}.`);
+    closePicker();
   }
 
   const unlockedDates = entries.filter((entry) => !entry.locked).map((entry) => entry.date);
@@ -267,6 +357,13 @@ export function PlanClient({
                   >
                     <RotateCcw aria-hidden="true" size={18} />
                   </button>
+                  <button
+                    className="pick-recipe-button"
+                    onClick={() => openPicker(entry.date)}
+                    type="button"
+                  >
+                    Pick
+                  </button>
                   {recipe ? (
                     <Link className="cook-link" href={`/cook?recipeId=${recipe.id}`}>
                       <Utensils aria-hidden="true" size={17} />
@@ -279,6 +376,65 @@ export function PlanClient({
           })}
         </section>
       )}
+      {pickerDate && pickerEntry ? (
+        <div className="recipe-picker-backdrop" role="presentation" onClick={closePicker}>
+          <section
+            aria-labelledby="recipe-picker-title"
+            className="recipe-picker-sheet"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="recipe-picker-header">
+              <div>
+                <p className="plan-date">{formatDate(pickerDate)}</p>
+                <h2 id="recipe-picker-title">Pick dinner</h2>
+                <p>{pickerRecipe ? `Currently ${pickerRecipe.title}` : "Choose a saved recipe"}</p>
+              </div>
+              <button className="icon-toggle" onClick={closePicker} type="button" aria-label="Close picker">
+                <X aria-hidden="true" size={18} />
+              </button>
+            </div>
+            <label className="picker-search">
+              <Search aria-hidden="true" size={18} />
+              <input
+                autoFocus
+                onChange={(event) => setPickerQuery(event.target.value)}
+                placeholder="Search title, tag, ingredient"
+                value={pickerQuery}
+              />
+            </label>
+            <div className="recipe-picker-results">
+              {pickerRecipes.map((recipe) => {
+                const isSelected = recipe.id === pickerEntry.recipeId;
+                return (
+                  <button
+                    className={isSelected ? "picker-result picker-result-active" : "picker-result"}
+                    key={recipe.id}
+                    onClick={() => pickRecipe(pickerDate, recipe)}
+                    type="button"
+                  >
+                    <span>
+                      <strong>{recipe.title}</strong>
+                      <small>
+                        {recipe.prepMinutes + recipe.cookMinutes} min · {recipe.servings} servings
+                      </small>
+                      <em>{recipe.tags.slice(0, 3).join(" · ")}</em>
+                    </span>
+                    {isSelected ? <Check aria-hidden="true" size={19} /> : null}
+                  </button>
+                );
+              })}
+              {pickerRecipes.length === 0 ? (
+                <div className="picker-empty">
+                  <strong>No recipes found</strong>
+                  <p>Try a title, tag, or ingredient from your saved recipes.</p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

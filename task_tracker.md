@@ -71,6 +71,7 @@ Goal: assign random saved dinners across a selected date range.
 - [x] Default planning range to 14 days where useful.
 - [x] Avoid duplicate recipes within a range when enough recipes exist.
 - [x] Add lock, reroll one day, reroll unlocked days, clear range, and save plan.
+- [x] Add manual recipe picking with fuzzy searchable menu.
 - [x] Persist meal plans to SQLite.
 - [x] Open a planned recipe directly into cooking mode.
 
