@@ -1,6 +1,6 @@
 "use client";
 
-import { ChefHat, Heart, Link as LinkIcon, Plus, Search, Star } from "lucide-react";
+import { ChefHat, Heart, Plus, Search, Star } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 
@@ -100,14 +100,8 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
           />
           <button type="submit">{isSearching ? "..." : "Go"}</button>
         </form>
-        <Link className="icon-action" href="/library/new" aria-label="Add recipe">
+        <Link className="icon-action" href="/library/add" aria-label="Add recipe">
           <Plus aria-hidden="true" size={22} />
-        </Link>
-      </div>
-      <div className="library-secondary-actions">
-        <Link href="/library/import">
-          <LinkIcon aria-hidden="true" size={17} />
-          Import URL
         </Link>
       </div>
       <div className="filter-bar" aria-label="Recipe filters">
@@ -207,7 +201,7 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
         <div className="empty-state">
           <h2>No recipes found</h2>
           <p>Try a different search, clear a filter, or add a recipe manually.</p>
-          <Link href="/library/new">
+          <Link href="/library/add">
             <Button>Add recipe</Button>
           </Link>
         </div>

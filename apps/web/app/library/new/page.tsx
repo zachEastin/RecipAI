@@ -1,6 +1,4 @@
-import { AppShell } from "@/components/app-shell";
-import { RecipeEditor } from "@/components/library/recipe-editor";
-import { SectionHeader } from "@/components/ui";
+import { redirect } from "next/navigation";
 
 export default async function NewRecipePage({
   searchParams
@@ -8,13 +6,11 @@ export default async function NewRecipePage({
   searchParams: Promise<{ source?: string }>;
 }) {
   const { source = "" } = await searchParams;
+  const params = new URLSearchParams({ mode: "manual" });
 
-  return (
-    <AppShell active="library">
-      <div className="screen-stack">
-        <SectionHeader title="Add recipe" />
-        <RecipeEditor initialSource={source} />
-      </div>
-    </AppShell>
-  );
+  if (source) {
+    params.set("source", source);
+  }
+
+  redirect(`/library/add?${params.toString()}`);
 }

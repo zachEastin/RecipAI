@@ -5,7 +5,7 @@ test("mobile core pages render and navigation is stable", async ({ page }) => {
   await expect(page.getByText("Ask for a recipe")).toBeVisible();
 
   await page.getByRole("link", { name: "Library" }).click();
-  await expect(page.getByText("Import URL")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Add recipe" })).toBeVisible();
 
   await page.getByRole("link", { name: "Plan" }).click();
   await expect(page.getByRole("button", { name: "Generate" })).toBeVisible();
@@ -15,6 +15,24 @@ test("mobile core pages render and navigation is stable", async ({ page }) => {
 
   await page.getByRole("link", { name: "Settings" }).click();
   await expect(page.getByRole("link", { name: "Export JSON" })).toBeVisible();
+});
+
+test("add recipe wizard unifies AI URL and manual creation", async ({ page }) => {
+  await page.goto("/library/add", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Add recipe" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /AI/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Generate draft" })).toBeVisible();
+
+  await page.getByRole("button", { name: /URL/ }).tap({ force: true });
+  await expect(page.getByRole("button", { name: "Review import" })).toBeVisible();
+  await expect(page.getByPlaceholder("https://example.com/favorite-dinner")).toBeVisible();
+
+  await page.getByRole("button", { name: /Manual/ }).tap({ force: true });
+  await expect(page.getByRole("button", { name: "Save recipe" })).toBeVisible();
+
+  await page.goto("/library/import?url=https%3A%2F%2Fexample.com%2Ffamily-dinner");
+  await expect(page).toHaveURL(/\/library\/add\?mode=url/);
+  await expect(page.locator('input[value="https://example.com/family-dinner"]')).toBeVisible();
 });
 
 test("AI result can launch cooking mode as a draft", async ({ page }) => {
