@@ -19,15 +19,32 @@ type EditorState = {
   steps: string;
 };
 
-function stateFromRecipe(recipe?: Recipe, initialSource = ""): EditorState {
+export type RecipeEditorDraft = {
+  title: string;
+  summary: string;
+  source: string;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  tags: string[];
+  ingredients: string[];
+  steps: string[];
+  provenance?: Recipe["provenance"];
+};
+
+function stateFromRecipe(
+  recipe?: Recipe,
+  initialSource = "",
+  initialDraft?: RecipeEditorDraft,
+): EditorState {
   return {
-    title: recipe?.title ?? "",
-    summary: recipe?.summary ?? "",
-    source: recipe?.source ?? initialSource,
-    servings: String(recipe?.servings ?? 4),
-    prepMinutes: String(recipe?.prepMinutes ?? 10),
-    cookMinutes: String(recipe?.cookMinutes ?? 20),
-    tags: recipe?.tags.join(", ") ?? "",
+    title: recipe?.title ?? initialDraft?.title ?? "",
+    summary: recipe?.summary ?? initialDraft?.summary ?? "",
+    source: recipe?.source ?? initialDraft?.source ?? initialSource,
+    servings: String(recipe?.servings ?? initialDraft?.servings ?? 4),
+    prepMinutes: String(recipe?.prepMinutes ?? initialDraft?.prepMinutes ?? 10),
+    cookMinutes: String(recipe?.cookMinutes ?? initialDraft?.cookMinutes ?? 20),
+    tags: recipe?.tags.join(", ") ?? initialDraft?.tags.join(", ") ?? "",
     ingredients:
       recipe?.ingredients
         .map((item) =>
@@ -35,8 +52,8 @@ function stateFromRecipe(recipe?: Recipe, initialSource = ""): EditorState {
             .filter(Boolean)
             .join(" "),
         )
-        .join("\n") ?? "",
-    steps: recipe?.steps.map((step) => step.body).join("\n") ?? ""
+        .join("\n") ?? initialDraft?.ingredients.join("\n") ?? "",
+    steps: recipe?.steps.map((step) => step.body).join("\n") ?? initialDraft?.steps.join("\n") ?? ""
   };
 }
 
@@ -55,14 +72,16 @@ function parseIngredient(line: string) {
 }
 
 export function RecipeEditor({
+  initialDraft,
   recipe,
   initialSource = ""
 }: {
+  initialDraft?: RecipeEditorDraft;
   recipe?: Recipe;
   initialSource?: string;
 }) {
   const router = useRouter();
-  const [state, setState] = useState(() => stateFromRecipe(recipe, initialSource));
+  const [state, setState] = useState(() => stateFromRecipe(recipe, initialSource, initialDraft));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -89,7 +108,7 @@ export function RecipeEditor({
         .map((tag) => tag.trim())
         .filter(Boolean),
       favorite: recipe?.favorite ?? false,
-      provenance: recipe?.provenance ?? "manual",
+      provenance: recipe?.provenance ?? initialDraft?.provenance ?? "manual",
       ingredients: state.ingredients
         .split("\n")
         .map((line) => line.trim())

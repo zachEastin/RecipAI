@@ -14,7 +14,7 @@
 - AI structured response schema accepts recipe result data.
 - SQLite migrations apply to an in-memory database.
 
-## Future UI Tests
+## UI Smoke Tests
 
 Use Playwright for:
 
@@ -24,3 +24,5 @@ Use Playwright for:
 - Meal plan generation.
 - Shopping list generation.
 - Cooking mode from a planned recipe.
+
+Run mobile smoke coverage with `npm run test:e2e`.

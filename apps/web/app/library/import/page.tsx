@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { AppShell } from "@/components/app-shell";
+import { RecipeEditor } from "@/components/library/recipe-editor";
 import { Button, SectionHeader } from "@/components/ui";
+import { parseRecipeUrl } from "@/lib/recipe-url-parser";
 
 export default async function ImportRecipePage({
   searchParams
@@ -9,6 +11,7 @@ export default async function ImportRecipePage({
   searchParams: Promise<{ url?: string }>;
 }) {
   const { url = "" } = await searchParams;
+  const review = url ? await parseRecipeUrl(url) : null;
 
   return (
     <AppShell active="library">
@@ -30,28 +33,48 @@ export default async function ImportRecipePage({
             </Button>
           </form>
         </section>
-        {url ? (
+        {review ? (
           <section className="panel import-review">
             <h2>Review before saving</h2>
-            <p>
-              URL parsing is staged here for the next implementation pass. For now, use this as
-              the review checkpoint, then add the recipe manually with the source URL preserved.
-            </p>
+            <p>{review.parserNotes.join(" ")}</p>
             <dl className="settings-list">
               <div>
                 <dt>Source</dt>
-                <dd>{url}</dd>
+                <dd>{review.source}</dd>
               </div>
               <div>
                 <dt>Status</dt>
-                <dd>Parser placeholder</dd>
+                <dd>{review.parserStatus}</dd>
               </div>
             </dl>
-            <Link href={`/library/new?source=${encodeURIComponent(url)}`}>
-              <Button className="full-width">Continue in editor</Button>
-            </Link>
           </section>
         ) : null}
+        {review ? (
+          <RecipeEditor
+            initialDraft={{
+              title: review.title,
+              summary: review.summary,
+              source: review.source,
+              servings: review.servings,
+              prepMinutes: review.prepMinutes,
+              cookMinutes: review.cookMinutes,
+              tags: review.tags,
+              ingredients: review.ingredients,
+              steps: review.steps,
+              provenance: "url-import"
+            }}
+          />
+        ) : (
+          <section className="panel import-review">
+            <h2>Review before saving</h2>
+            <p>Paste a recipe URL to parse common recipe metadata, then edit every field before saving.</p>
+            <Link href="/library/new">
+              <Button className="full-width" variant="secondary">
+                Add manually instead
+              </Button>
+            </Link>
+          </section>
+        )}
       </div>
     </AppShell>
   );

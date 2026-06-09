@@ -10,7 +10,7 @@ export default defineConfig({
   projects: [
     {
       name: "mobile-chrome",
-      use: { ...devices["Pixel 7"] }
+      use: { ...devices["Pixel 7"], baseURL: "http://127.0.0.1:3000" }
     }
   ]
 });

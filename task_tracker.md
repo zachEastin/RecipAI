@@ -4,7 +4,7 @@ Last updated: 2026-06-09
 
 ## Current Status
 
-Milestones 1-6 are implemented through cooking mode. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, saved dinner planning, editable grocery lists generated from plans, and a practical guided cooking surface.
+Milestones 1-7 are implemented. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, saved dinner planning, editable grocery lists generated from plans, guided cooking mode, import review, backup/export, and mobile smoke coverage.
 
 Completed foundation:
 
@@ -124,20 +124,20 @@ Acceptance:
 
 Goal: round out local-first durability and long-term usability.
 
-- [ ] Add URL import parser for common recipe metadata.
-- [ ] Add review/edit-before-save import flow.
-- [ ] Add JSON export.
-- [ ] Add SQLite backup copy flow.
-- [ ] Add local-network setup notes for phones on home Wi-Fi.
-- [ ] Add empty, loading, error, offline, and missing-provider states across screens.
-- [ ] Add Playwright mobile smoke tests for core flows.
-- [ ] Run a dedicated UI polish pass on phone and tablet viewports.
+- [x] Add URL import parser for common recipe metadata.
+- [x] Add review/edit-before-save import flow.
+- [x] Add JSON export.
+- [x] Add SQLite backup copy flow.
+- [x] Add local-network setup notes for phones on home Wi-Fi.
+- [x] Add empty, loading, error, offline, and missing-provider states across screens.
+- [x] Add Playwright mobile smoke tests for core flows.
+- [x] Run a dedicated UI polish pass on phone and tablet viewports.
 
 Acceptance:
 
-- [ ] Family can add recipes from URLs or manually.
-- [ ] Data can be backed up locally.
-- [ ] The app feels coherent, fast, and polished across core flows.
+- [x] Family can add recipes from URLs or manually.
+- [x] Data can be backed up locally.
+- [x] The app feels coherent, fast, and polished across core flows.
 
 ## Known Follow-Ups
 
