@@ -1417,6 +1417,138 @@ button {
   min-height: 52px;
 }
 
+.floating-timer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 44px rgba(12, 30, 23, 0.28);
+  color: var(--text);
+  cursor: grab;
+  position: fixed;
+  touch-action: none;
+  user-select: none;
+  z-index: 35;
+}
+
+.floating-timer:active {
+  cursor: grabbing;
+}
+
+.floating-timer-compact {
+  align-items: center;
+  border-radius: 999px;
+  display: flex;
+  height: 88px;
+  justify-content: center;
+}
+
+.floating-timer-circle {
+  align-items: center;
+  display: grid;
+  height: 80px;
+  justify-items: center;
+  position: relative;
+  width: 80px;
+}
+
+.floating-timer-circle svg {
+  inset: 0;
+  position: absolute;
+  transform: rotate(-90deg);
+}
+
+.floating-timer-track,
+.floating-timer-progress {
+  fill: none;
+  stroke-width: 7;
+}
+
+.floating-timer-track {
+  stroke: #e2ece5;
+}
+
+.floating-timer-progress {
+  stroke: var(--accent);
+  stroke-dasharray: 213.63;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.24s linear;
+}
+
+.floating-timer-circle strong {
+  color: var(--primary);
+  font-size: 1.12rem;
+  line-height: 1;
+  margin-top: 5px;
+}
+
+.floating-timer-circle span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  margin-top: 42px;
+  position: absolute;
+  text-transform: uppercase;
+}
+
+.floating-timer-full {
+  border-radius: 8px;
+  min-height: 126px;
+  padding: 13px;
+}
+
+.floating-timer-full-content {
+  display: grid;
+  gap: 11px;
+}
+
+.floating-timer-full-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.floating-timer-full-header span {
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.floating-timer-full-header strong {
+  color: #8b3b28;
+  font-size: 1.78rem;
+  line-height: 1;
+}
+
+.floating-timer-bar {
+  background: #fff0eb;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.floating-timer-bar span {
+  background: var(--accent);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  transition: width 0.24s linear;
+}
+
+.floating-timer-full button {
+  align-items: center;
+  background: var(--primary);
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 12px;
+  width: 100%;
+}
+
 .settings-list {
   display: grid;
   gap: 10px;

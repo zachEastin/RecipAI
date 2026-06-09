@@ -38,6 +38,11 @@ test("saved recipe cooking controls work on mobile", async ({ page }) => {
   await firstIngredient.scrollIntoViewIfNeeded();
   await firstIngredient.tap({ force: true });
   await page.getByTestId("cooking-notes").fill("E2E cooking note");
+  await page.getByRole("button", { name: "Start" }).tap({ force: true });
+  await expect(page.getByTestId("floating-cook-timer")).toBeVisible();
+  await expect(page.getByTestId("floating-cook-timer")).toContainText("Step 1");
+  await page.getByTestId("floating-cook-timer").tap({ force: true });
+  await expect(page.getByRole("button", { name: "Back to step 1" })).toBeVisible();
 
   await expect(page.locator(".cook-ingredient-checked")).toHaveCount(1);
   await expect(page.getByTestId("cooking-notes")).toHaveValue("E2E cooking note");

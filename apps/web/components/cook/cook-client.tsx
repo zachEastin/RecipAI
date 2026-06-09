@@ -13,7 +13,7 @@ import {
   Volume2
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import type { Recipe } from "@recipai/recipes";
 
@@ -67,6 +67,29 @@ type CookDraftPayload = {
     timerMinutes: number | null;
   }>;
 };
+
+type FloatingTimerMode = "compact" | "full";
+
+type TimerPosition = {
+  x: number;
+  y: number;
+};
+
+type TimerDragState = {
+  mode: FloatingTimerMode;
+  originX: number;
+  originY: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  wasDragged: boolean;
+};
+
+const FLOATING_TIMER_MARGIN = 16;
+const FLOATING_TIMER_NAV_CLEARANCE = 84;
+const COMPACT_TIMER_SIZE = 88;
+const FULL_TIMER_HEIGHT = 126;
+const FULL_TIMER_MAX_WIDTH = 508;
 
 function recipeToCookRecipe(recipe: Recipe): CookRecipe {
   return {
@@ -123,6 +146,55 @@ function formatTimer(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
+function viewportSize(): { height: number; width: number } {
+  if (typeof window === "undefined") {
+    return { height: 844, width: 390 };
+  }
+
+  return {
+    height: window.innerHeight,
+    width: window.innerWidth
+  };
+}
+
+function fullTimerWidth(): number {
+  const { width } = viewportSize();
+  return Math.min(FULL_TIMER_MAX_WIDTH, width - FLOATING_TIMER_MARGIN * 2);
+}
+
+function clampPosition(position: TimerPosition, mode: FloatingTimerMode): TimerPosition {
+  const { height, width } = viewportSize();
+  const widgetWidth = mode === "full" ? fullTimerWidth() : COMPACT_TIMER_SIZE;
+  const widgetHeight = mode === "full" ? FULL_TIMER_HEIGHT : COMPACT_TIMER_SIZE;
+  const maxX = Math.max(FLOATING_TIMER_MARGIN, width - widgetWidth - FLOATING_TIMER_MARGIN);
+  const maxY = Math.max(
+    FLOATING_TIMER_MARGIN,
+    height - widgetHeight - FLOATING_TIMER_NAV_CLEARANCE,
+  );
+
+  return {
+    x: Math.min(Math.max(position.x, FLOATING_TIMER_MARGIN), maxX),
+    y: Math.min(Math.max(position.y, FLOATING_TIMER_MARGIN), maxY)
+  };
+}
+
+function defaultTimerPosition(mode: FloatingTimerMode): TimerPosition {
+  const { height, width } = viewportSize();
+
+  return clampPosition(
+    mode === "full"
+      ? {
+          x: FLOATING_TIMER_MARGIN,
+          y: height - FULL_TIMER_HEIGHT - FLOATING_TIMER_NAV_CLEARANCE
+        }
+      : {
+          x: width - COMPACT_TIMER_SIZE - FLOATING_TIMER_MARGIN,
+          y: height - COMPACT_TIMER_SIZE - FLOATING_TIMER_NAV_CLEARANCE
+        },
+    mode,
+  );
+}
+
 export function saveAiCookDraft(draft: CookDraftPayload): void {
   sessionStorage.setItem(AI_DRAFT_STORAGE_KEY, JSON.stringify(draft));
 }
@@ -142,10 +214,15 @@ export function CookClient({
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState<Record<string, number>>({});
   const [runningTimerId, setRunningTimerId] = useState<string | null>(null);
+  const [floatingTimerId, setFloatingTimerId] = useState<string | null>(null);
+  const [floatingTimerMode, setFloatingTimerMode] =
+    useState<FloatingTimerMode>("compact");
+  const [timerPosition, setTimerPosition] = useState<TimerPosition>({ x: 24, y: 128 });
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [wakeStatus, setWakeStatus] = useState<"idle" | "on" | "unsupported">("idle");
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const timerDragRef = useRef<TimerDragState | null>(null);
 
   useEffect(() => {
     if (recipe || !draftStorageKey) {
@@ -195,9 +272,28 @@ export function CookClient({
     };
   }, []);
 
+  useEffect(() => {
+    function handleResize() {
+      setTimerPosition((current) => clampPosition(current, floatingTimerMode));
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [floatingTimerMode]);
+
   const activeStep = recipe?.steps[activeStepIndex] ?? null;
   const scale = recipe ? servings / recipe.servings : 1;
   const checkedCount = checkedIngredients.size;
+  const floatingTimerIndex = recipe?.steps.findIndex((step) => step.id === floatingTimerId) ?? -1;
+  const floatingTimerStep =
+    floatingTimerIndex >= 0 && recipe ? recipe.steps[floatingTimerIndex] ?? null : null;
+  const floatingTimerTotalSeconds = (floatingTimerStep?.timerMinutes ?? 0) * 60;
+  const floatingTimerRemainingSeconds = floatingTimerStep
+    ? (timerSeconds[floatingTimerStep.id] ?? floatingTimerTotalSeconds)
+    : 0;
+  const floatingTimerProgress = floatingTimerTotalSeconds
+    ? 1 - floatingTimerRemainingSeconds / floatingTimerTotalSeconds
+    : 0;
 
   const initializedTimerSeconds = useMemo(() => {
     if (!activeStep?.timerMinutes) {
@@ -269,6 +365,10 @@ export function CookClient({
       ...current,
       [stepId]: current[stepId] ?? minutes * 60
     }));
+    if (!floatingTimerId) {
+      setTimerPosition(defaultTimerPosition(floatingTimerMode));
+    }
+    setFloatingTimerId(stepId);
     setRunningTimerId(stepId);
   }
 
@@ -279,6 +379,74 @@ export function CookClient({
   function resetTimer(stepId: string, minutes: number) {
     setRunningTimerId((current) => (current === stepId ? null : current));
     setTimerSeconds((current) => ({ ...current, [stepId]: minutes * 60 }));
+    setFloatingTimerId(stepId);
+  }
+
+  function toggleFloatingTimerMode() {
+    setFloatingTimerMode((current) => {
+      const next = current === "compact" ? "full" : "compact";
+      setTimerPosition((position) => clampPosition(position, next));
+      return next;
+    });
+  }
+
+  function goToFloatingTimerStep() {
+    if (floatingTimerIndex >= 0) {
+      setActiveStepIndex(floatingTimerIndex);
+      setStatus(`Returned to step ${floatingTimerIndex + 1}.`);
+    }
+  }
+
+  function handleFloatingTimerPointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    timerDragRef.current = {
+      mode: floatingTimerMode,
+      originX: timerPosition.x,
+      originY: timerPosition.y,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      wasDragged: false
+    };
+  }
+
+  function handleFloatingTimerPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const drag = timerDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+      drag.wasDragged = true;
+    }
+
+    setTimerPosition(
+      clampPosition(
+        drag.mode === "full"
+          ? { x: drag.originX, y: drag.originY + deltaY }
+          : { x: drag.originX + deltaX, y: drag.originY + deltaY },
+        drag.mode,
+      ),
+    );
+  }
+
+  function handleFloatingTimerPointerUp(event: PointerEvent<HTMLDivElement>) {
+    const drag = timerDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    timerDragRef.current = null;
+
+    if (!drag.wasDragged) {
+      toggleFloatingTimerMode();
+    }
   }
 
   async function markCooked() {
@@ -458,6 +626,75 @@ export function CookClient({
         <ChefHat aria-hidden="true" size={18} />
         Mark cooked
       </Button>
+      {floatingTimerStep ? (
+        <div
+          aria-label={`Step ${floatingTimerIndex + 1} timer, ${formatTimer(floatingTimerRemainingSeconds)} left`}
+          className={
+            floatingTimerMode === "full"
+              ? "floating-timer floating-timer-full"
+              : "floating-timer floating-timer-compact"
+          }
+          data-testid="floating-cook-timer"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleFloatingTimerMode();
+            }
+          }}
+          onPointerDown={handleFloatingTimerPointerDown}
+          onPointerMove={handleFloatingTimerPointerMove}
+          onPointerUp={handleFloatingTimerPointerUp}
+          role="button"
+          style={{
+            left: timerPosition.x,
+            top: timerPosition.y,
+            width:
+              floatingTimerMode === "full"
+                ? `min(${FULL_TIMER_MAX_WIDTH}px, calc(100vw - ${FLOATING_TIMER_MARGIN * 2}px))`
+                : COMPACT_TIMER_SIZE
+          }}
+          tabIndex={0}
+        >
+          {floatingTimerMode === "compact" ? (
+            <div className="floating-timer-circle">
+              <svg aria-hidden="true" viewBox="0 0 80 80">
+                <circle className="floating-timer-track" cx="40" cy="40" r="34" />
+                <circle
+                  className="floating-timer-progress"
+                  cx="40"
+                  cy="40"
+                  r="34"
+                  style={{
+                    strokeDashoffset: 213.63 * (1 - floatingTimerProgress)
+                  }}
+                />
+              </svg>
+              <strong>{formatTimer(floatingTimerRemainingSeconds)}</strong>
+              <span>Step {floatingTimerIndex + 1}</span>
+            </div>
+          ) : (
+            <div className="floating-timer-full-content">
+              <div className="floating-timer-full-header">
+                <span>Step {floatingTimerIndex + 1}</span>
+                <strong>{formatTimer(floatingTimerRemainingSeconds)}</strong>
+              </div>
+              <div className="floating-timer-bar" aria-hidden="true">
+                <span style={{ width: `${Math.max(0, Math.min(100, floatingTimerProgress * 100))}%` }} />
+              </div>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goToFloatingTimerStep();
+                }}
+                onPointerDown={(event) => event.stopPropagation()}
+                type="button"
+              >
+                Back to step {floatingTimerIndex + 1}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
