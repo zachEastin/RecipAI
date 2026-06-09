@@ -4,9 +4,30 @@ import { Clock, Lightbulb, Replace, Sparkles, Users } from "lucide-react";
 
 import type { AiStructuredResult, RecipeResult } from "@recipai/ai";
 
+import { saveAiCookDraft } from "../cook/cook-client";
 import { Button } from "../ui";
 
 function RecipeResultCard({ result }: { result: RecipeResult }) {
+  function startCooking() {
+    saveAiCookDraft({
+      title: result.title,
+      summary: result.summary,
+      servings: result.servings,
+      totalMinutes: result.totalMinutes,
+      ingredients: result.ingredients.map((ingredient) => ({
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+        name: ingredient.name,
+        note: ingredient.note
+      })),
+      steps: result.steps.map((step) => ({
+        body: step.body,
+        timerMinutes: step.timerMinutes
+      }))
+    });
+    window.location.assign("/cook?draft=ai");
+  }
+
   return (
     <article className="ai-result-card">
       <div className="ai-result-header">
@@ -63,7 +84,9 @@ function RecipeResultCard({ result }: { result: RecipeResult }) {
       ) : null}
       <div className="card-actions">
         <Button variant="secondary">Save recipe</Button>
-        <Button>Start cooking</Button>
+        <Button onClick={startCooking} type="button">
+          Start cooking
+        </Button>
       </div>
     </article>
   );

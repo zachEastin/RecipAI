@@ -4,7 +4,7 @@ Last updated: 2026-06-09
 
 ## Current Status
 
-Milestones 1-5 are implemented through shopping lists. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, saved dinner planning, and editable grocery lists generated from plans.
+Milestones 1-6 are implemented through cooking mode. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, saved dinner planning, editable grocery lists generated from plans, and a practical guided cooking surface.
 
 Completed foundation:
 
@@ -105,20 +105,20 @@ Acceptance:
 
 Goal: make the app genuinely useful while cooking.
 
-- [ ] Add large step-by-step cooking view.
-- [ ] Add ingredient checklist.
-- [ ] Add timers from recipe steps.
-- [ ] Add serving scaling.
-- [ ] Add screen-awake behavior where browser support allows.
-- [ ] Add notes while cooking.
-- [ ] Add "mark cooked" flow to update last cooked date.
-- [ ] Launch cooking mode from Library, AI result, or Meal Plan.
+- [x] Add large step-by-step cooking view.
+- [x] Add ingredient checklist.
+- [x] Add timers from recipe steps.
+- [x] Add serving scaling.
+- [x] Add screen-awake behavior where browser support allows.
+- [x] Add notes while cooking.
+- [x] Add "mark cooked" flow to update last cooked date.
+- [x] Launch cooking mode from Library, AI result, or Meal Plan.
 
 Acceptance:
 
-- [ ] User can cook a recipe from start to finish without fighting the UI.
-- [ ] Text is readable at kitchen distance on mobile.
-- [ ] Timers and scaling work without layout shifts.
+- [x] User can cook a recipe from start to finish without fighting the UI.
+- [x] Text is readable at kitchen distance on mobile.
+- [x] Timers and scaling work without layout shifts.
 
 ## Milestone 7 - Import, Backup, And Polish
 

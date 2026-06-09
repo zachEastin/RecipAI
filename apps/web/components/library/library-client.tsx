@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Link as LinkIcon, Plus, Search, Star } from "lucide-react";
+import { ChefHat, Heart, Link as LinkIcon, Plus, Search, Star } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 
@@ -191,6 +191,10 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
                   </button>
                 ))}
               </div>
+              <Link className="text-link" href={`/cook?recipeId=${recipe.id}`}>
+                <ChefHat aria-hidden="true" size={16} />
+                Cook
+              </Link>
               <Link className="text-link" href={`/library/${recipe.id}/edit`}>
                 Edit
               </Link>

@@ -1,4 +1,4 @@
-import { Clock, Heart, Pencil, Star, Users } from "lucide-react";
+import { ChefHat, Clock, Heart, Pencil, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -42,12 +42,20 @@ export default async function RecipeDetailPage({
             <h2>{recipe.title}</h2>
             <p>{recipe.summary}</p>
           </div>
-          <Link href={`/library/${recipe.id}/edit`}>
-            <Button variant="secondary">
-              <Pencil aria-hidden="true" size={17} />
-              Edit
-            </Button>
-          </Link>
+          <div className="detail-actions">
+            <Link href={`/cook?recipeId=${recipe.id}`}>
+              <Button>
+                <ChefHat aria-hidden="true" size={17} />
+                Cook
+              </Button>
+            </Link>
+            <Link href={`/library/${recipe.id}/edit`}>
+              <Button variant="secondary">
+                <Pencil aria-hidden="true" size={17} />
+                Edit
+              </Button>
+            </Link>
+          </div>
         </header>
 
         <div className="meta-panel">

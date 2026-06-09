@@ -1,4 +1,5 @@
 import { CalendarCheck, Database, RotateCcw, ShoppingBasket } from "lucide-react";
+import Link from "next/link";
 
 import type { AiStructuredResult } from "@recipai/ai";
 import { seedRecipes } from "@recipai/recipes";
@@ -79,8 +80,12 @@ export function ShopScreen() {
 export function CookScreen() {
   return (
     <EmptyState
-      action={<Button>Open library</Button>}
-      body="Cooking mode will show large steps, timers, scaling, and screen-awake controls."
+      action={
+        <Link href="/library">
+          <Button>Open library</Button>
+        </Link>
+      }
+      body="Open a saved recipe, planned dinner, or AI result to use large steps, timers, scaling, and notes."
       title="Choose a recipe to cook"
     />
   );
