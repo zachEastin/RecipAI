@@ -1,33 +1,20 @@
 "use client";
 
 import { Clock, Lightbulb, Replace, Sparkles, Users } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
 import type { AiStructuredResult, RecipeResult } from "@recipai/ai";
 
 import { saveAiCookDraft } from "../cook/cook-client";
 import { Button } from "../ui";
 
-function RecipeResultCard({ result }: { result: RecipeResult }) {
-  function startCooking() {
-    saveAiCookDraft({
-      title: result.title,
-      summary: result.summary,
-      servings: result.servings,
-      totalMinutes: result.totalMinutes,
-      ingredients: result.ingredients.map((ingredient) => ({
-        quantity: ingredient.quantity,
-        unit: ingredient.unit,
-        name: ingredient.name,
-        note: ingredient.note
-      })),
-      steps: result.steps.map((step) => ({
-        body: step.body,
-        timerMinutes: step.timerMinutes
-      }))
-    });
-    window.location.assign("/cook?draft=ai");
-  }
-
+function RecipeResultCard({
+  actions,
+  result
+}: {
+  actions?: ReactNode;
+  result: RecipeResult;
+}) {
   return (
     <article className="ai-result-card">
       <div className="ai-result-header">
@@ -82,17 +69,79 @@ function RecipeResultCard({ result }: { result: RecipeResult }) {
           {result.tips[0]}
         </div>
       ) : null}
-      <div className="card-actions">
-        <Button variant="secondary">Save recipe</Button>
-        <Button onClick={startCooking} type="button">
-          Start cooking
-        </Button>
-      </div>
+      {actions}
     </article>
   );
 }
 
-export function AiResultView({ result }: { result: AiStructuredResult }) {
+function cookFromRecipeResult(result: RecipeResult) {
+  saveAiCookDraft({
+    title: result.title,
+    summary: result.summary,
+    servings: result.servings,
+    totalMinutes: result.totalMinutes,
+    ingredients: result.ingredients.map((ingredient) => ({
+      quantity: ingredient.quantity,
+      unit: ingredient.unit,
+      name: ingredient.name,
+      note: ingredient.note
+    })),
+    steps: result.steps.map((step) => ({
+      body: step.body,
+      timerMinutes: step.timerMinutes
+    }))
+  });
+  window.location.assign("/cook?draft=ai");
+}
+
+export function AiResultView({
+  result,
+  runId,
+  sourceRecipeId
+}: {
+  result: AiStructuredResult;
+  runId?: string | null;
+  sourceRecipeId?: string | null;
+}) {
+  const [status, setStatus] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function saveResult(action: "replace-original" | "save-as-new") {
+    setIsSaving(true);
+    setStatus(null);
+
+    try {
+      const response = await fetch("/api/ai/recipes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          result,
+          runId: runId ?? undefined,
+          sourceRecipeId: sourceRecipeId ?? undefined
+        })
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        recipe?: { title: string };
+      };
+
+      if (!response.ok || !payload.recipe) {
+        throw new Error(payload.error ?? "Could not save this AI recipe.");
+      }
+
+      setStatus(
+        action === "replace-original"
+          ? `Replaced original with ${payload.recipe.title}.`
+          : `Saved ${payload.recipe.title} to your library.`,
+      );
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "Could not save this AI recipe.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (result.type === "recipe-modification-result") {
     return (
       <article className="ai-result-card">
@@ -115,13 +164,61 @@ export function AiResultView({ result }: { result: AiStructuredResult }) {
           </ul>
         </div>
         <RecipeResultCard result={result.updatedRecipe} />
-        <div className="card-actions">
-          <Button variant="secondary">Save as new</Button>
-          <Button>Replace original</Button>
+        <div className="card-actions ai-action-grid">
+          <Button
+            disabled={isSaving}
+            onClick={() => void saveResult("save-as-new")}
+            type="button"
+            variant="secondary"
+          >
+            Save as new
+          </Button>
+          <Button
+            disabled={isSaving || !sourceRecipeId}
+            onClick={() => void saveResult("replace-original")}
+            type="button"
+          >
+            Replace original
+          </Button>
+          <Button
+            disabled={isSaving}
+            onClick={() => cookFromRecipeResult(result.updatedRecipe)}
+            type="button"
+            variant="secondary"
+          >
+            Start cooking
+          </Button>
         </div>
+        {status ? <p className="status-text">{status}</p> : null}
       </article>
     );
   }
 
-  return <RecipeResultCard result={result} />;
+  return (
+    <>
+      <RecipeResultCard
+        actions={
+          <div className="card-actions">
+            <Button
+              disabled={isSaving}
+              onClick={() => void saveResult("save-as-new")}
+              type="button"
+              variant="secondary"
+            >
+              Save recipe
+            </Button>
+            <Button
+              disabled={isSaving}
+              onClick={() => cookFromRecipeResult(result)}
+              type="button"
+            >
+              Start cooking
+            </Button>
+          </div>
+        }
+        result={result}
+      />
+      {status ? <p className="status-text">{status}</p> : null}
+    </>
+  );
 }

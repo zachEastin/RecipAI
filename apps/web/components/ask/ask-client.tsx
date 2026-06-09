@@ -9,6 +9,7 @@ import { AiResultView } from "./ai-result-view";
 import { Button, Chip, SectionHeader, TextArea } from "../ui";
 
 type AiPromptResponse = {
+  run?: { id: string };
   result?: AiStructuredResult;
   error?: string;
 };
@@ -33,6 +34,8 @@ export function AskClient({
   const [mode, setMode] = useState<AiPromptMode>("general-recipe");
   const [sourceRecipeId, setSourceRecipeId] = useState(recipes[0]?.id ?? "");
   const [result, setResult] = useState<AiStructuredResult>(initialResult);
+  const [resultRunId, setResultRunId] = useState<string | null>(null);
+  const [resultSourceRecipeId, setResultSourceRecipeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -63,6 +66,8 @@ export function AskClient({
       }
 
       setResult(payload.result);
+      setResultRunId(payload.run?.id ?? null);
+      setResultSourceRecipeId(mode === "modify-saved-recipe" ? sourceRecipeId : null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "RecipAI could not run that prompt.");
     } finally {
@@ -151,7 +156,11 @@ export function AskClient({
 
       <section>
         <SectionHeader title="Structured result" />
-        <AiResultView result={result} />
+        <AiResultView
+          result={result}
+          runId={resultRunId}
+          sourceRecipeId={resultSourceRecipeId}
+        />
       </section>
     </div>
   );

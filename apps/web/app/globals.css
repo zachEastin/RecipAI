@@ -709,6 +709,16 @@ button {
   grid-template-columns: 1fr 1fr;
 }
 
+.ai-action-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 480px) {
+  .ai-action-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .empty-state {
   padding: 22px 18px;
   text-align: center;

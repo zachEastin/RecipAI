@@ -12,7 +12,7 @@ export {
   updateRecipeRating
 } from "./recipes";
 export type { SaveRecipeInput } from "./recipes";
-export { saveAiRun } from "./ai-runs";
+export { saveAiRun, updateAiRunSaveStatus } from "./ai-runs";
 export type { SaveAiRunInput, SavedAiRun } from "./ai-runs";
 export {
   clearMealPlanRange,

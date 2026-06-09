@@ -31,15 +31,15 @@ Goal: make the Ask screen real while preserving the non-chatbot product experien
 - [x] Persist AI runs to SQLite with prompt, provider, mode, source recipe, structured response, and save status.
 - [x] Add invalid-response recovery UI instead of showing raw chatbot text.
 - [x] Add mocked provider tests for schema extraction and saved-recipe prompt context.
-- [ ] Add full mocked API route/provider tests for success, schema failure, provider error, and missing API key.
-- [ ] Add real save/replace recipe actions from AI results.
+- [x] Add full mocked API route/provider tests for success, schema failure, provider error, and missing API key.
+- [x] Add real save/replace recipe actions from AI results.
 
 Acceptance:
 
 - [x] User can submit a general recipe prompt from Ask.
 - [x] User can choose a saved recipe and ask for changes.
 - [x] AI output renders as structured recipe UI, not chat bubbles.
-- [ ] AI result can be saved as a recipe draft or saved recipe.
+- [x] AI result can be saved as a recipe draft or saved recipe.
 - [x] `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build` pass.
 
 ## Milestone 3 - Recipe Library
