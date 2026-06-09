@@ -15,6 +15,13 @@ import {
   searchRecipes,
   updateRecipeFavorite
 } from "./recipes";
+import {
+  addShoppingListItem,
+  clearCompletedShoppingListItems,
+  deleteShoppingListItem,
+  generateShoppingListFromMealPlan,
+  updateShoppingListItem
+} from "./shopping-lists";
 
 describe("database migrations", () => {
   it("apply to an in-memory SQLite database", () => {
@@ -116,6 +123,67 @@ describe("database migrations", () => {
     expect(setMealPlanLocked(db, "2026-06-08", true)?.locked).toBe(true);
     clearMealPlanRange(db, "2026-06-08", "2026-06-09");
     expect(listMealPlanEntries(db, "2026-06-08", "2026-06-09")).toHaveLength(0);
+    db.close();
+  });
+
+  it("generates editable shopping lists from planned dinners", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+    const riceBowls = saveRecipe(db, {
+      title: "Rice Bowls",
+      summary: "Simple bowls.",
+      servings: 4,
+      prepMinutes: 5,
+      cookMinutes: 20,
+      tags: ["fast"],
+      provenance: "manual",
+      ingredients: [
+        { quantity: 1, unit: "cup", name: "rice", note: null, groceryCategory: "Grains" },
+        { quantity: 1, unit: "cup", name: "tomatoes", note: null, groceryCategory: "Produce" }
+      ],
+      steps: [{ body: "Cook rice.", timerMinutes: 18 }]
+    });
+    const tomatoSoup = saveRecipe(db, {
+      title: "Tomato Soup",
+      summary: "Warm soup.",
+      servings: 4,
+      prepMinutes: 10,
+      cookMinutes: 25,
+      tags: ["soup"],
+      provenance: "manual",
+      ingredients: [
+        { quantity: 2, unit: "cups", name: "Rice", note: null, groceryCategory: "Grains" },
+        { quantity: 14, unit: "oz", name: "tomato", note: null, groceryCategory: "Produce" }
+      ],
+      steps: [{ body: "Simmer.", timerMinutes: 25 }]
+    });
+
+    saveMealPlanEntries(db, [
+      { date: "2026-06-08", recipeId: riceBowls.id, locked: false },
+      { date: "2026-06-09", recipeId: tomatoSoup.id, locked: true }
+    ]);
+
+    const list = generateShoppingListFromMealPlan(db, "2026-06-08", "2026-06-09");
+    const rice = list.items.find((item) => item.name.toLowerCase() === "rice");
+    const tomatoItems = list.items.filter((item) => item.name.toLowerCase().includes("tomato"));
+
+    expect(rice?.quantity).toBe(3);
+    expect(rice?.unit).toBe("cup");
+    expect(tomatoItems).toHaveLength(2);
+
+    const checked = updateShoppingListItem(db, rice!.id, { checked: true, name: "Jasmine rice" });
+    expect(checked?.checked).toBe(true);
+    expect(checked?.name).toBe("Jasmine rice");
+
+    const manual = addShoppingListItem(db, list.id, {
+      quantity: 1,
+      unit: null,
+      name: "dish soap",
+      groceryCategory: "Household"
+    });
+    expect(manual?.groceryCategory).toBe("Household");
+    expect(deleteShoppingListItem(db, manual!.id)).toBe(true);
+    expect(clearCompletedShoppingListItems(db, list.id)).toBe(1);
     db.close();
   });
 });

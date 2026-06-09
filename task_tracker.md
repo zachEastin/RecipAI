@@ -1,10 +1,10 @@
 # RecipAI Task Tracker
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 ## Current Status
 
-Milestones 1-4 are implemented through meal planning. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, and saved dinner planning.
+Milestones 1-5 are implemented through shopping lists. The repo has a runnable mobile-first Next.js app with local SQLite recipes, structured AI prompting, database-backed recipe library, saved dinner planning, and editable grocery lists generated from plans.
 
 Completed foundation:
 
@@ -85,21 +85,21 @@ Acceptance:
 
 Goal: generate editable grocery lists from planned dinners.
 
-- [ ] Add shopping-list package or module for ingredient aggregation.
-- [ ] Generate from planned meals for a date range.
-- [ ] Default range to the next 14 days.
-- [ ] Merge compatible ingredients.
-- [ ] Preserve ambiguous unit conversions as separate items.
-- [ ] Group by grocery category with `Other` fallback.
-- [ ] Add checkoff, manual add, edit, delete, and clear completed.
-- [ ] Persist generated lists so edits are not lost.
-- [ ] Add print/export-friendly view.
+- [x] Add shopping-list package or module for ingredient aggregation.
+- [x] Generate from planned meals for a date range.
+- [x] Default range to the next 14 days.
+- [x] Merge compatible ingredients.
+- [x] Preserve ambiguous unit conversions as separate items.
+- [x] Group by grocery category with `Other` fallback.
+- [x] Add checkoff, manual add, edit, delete, and clear completed.
+- [x] Persist generated lists so edits are not lost.
+- [x] Add print/export-friendly view.
 
 Acceptance:
 
-- [ ] User can generate a useful 14-day list from planned dinners.
-- [ ] List remains editable after generation.
-- [ ] Ambiguous ingredients do not get incorrectly merged.
+- [x] User can generate a useful 14-day list from planned dinners.
+- [x] List remains editable after generation.
+- [x] Ambiguous ingredients do not get incorrectly merged.
 
 ## Milestone 6 - Cooking Mode
 

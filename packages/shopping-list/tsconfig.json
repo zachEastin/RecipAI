@@ -7,6 +7,5 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../recipes" }, { "path": "../shopping-list" }],
   "include": ["src/**/*.ts"]
 }

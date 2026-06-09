@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
     "@recipai/ai",
     "@recipai/db",
     "@recipai/meal-planning",
-    "@recipai/recipes"
+    "@recipai/recipes",
+    "@recipai/shopping-list"
   ]
 };
 

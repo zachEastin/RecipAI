@@ -5,6 +5,7 @@
     { "path": "./packages/ai" },
     { "path": "./packages/db" },
     { "path": "./packages/meal-planning" },
-    { "path": "./packages/recipes" }
+    { "path": "./packages/recipes" },
+    { "path": "./packages/shopping-list" }
   ]
 }

@@ -11,7 +11,8 @@
       "@recipai/ai": ["../../packages/ai/src"],
       "@recipai/db": ["../../packages/db/src"],
       "@recipai/meal-planning": ["../../packages/meal-planning/src"],
-      "@recipai/recipes": ["../../packages/recipes/src"]
+      "@recipai/recipes": ["../../packages/recipes/src"],
+      "@recipai/shopping-list": ["../../packages/shopping-list/src"]
     },
     "plugins": [{ "name": "next" }]
   },
@@ -19,7 +20,8 @@
     { "path": "../../packages/ai" },
     { "path": "../../packages/db" },
     { "path": "../../packages/meal-planning" },
-    { "path": "../../packages/recipes" }
+    { "path": "../../packages/recipes" },
+    { "path": "../../packages/shopping-list" }
   ],
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

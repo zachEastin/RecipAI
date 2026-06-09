@@ -21,3 +21,20 @@ export {
   setMealPlanLocked
 } from "./meal-plans";
 export type { MealPlanEntry, SaveMealPlanEntryInput } from "./meal-plans";
+export {
+  addShoppingListItem,
+  clearCompletedShoppingListItems,
+  deleteShoppingListItem,
+  generateShoppingListFromMealPlan,
+  getLatestShoppingList,
+  getShoppingListById,
+  listShoppingLists,
+  saveShoppingList,
+  updateShoppingListItem
+} from "./shopping-lists";
+export type {
+  SaveShoppingListInput,
+  ShoppingList,
+  ShoppingListItem,
+  ShoppingListItemUpdate
+} from "./shopping-lists";
