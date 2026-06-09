@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeft,
   Bot,
   CheckCircle2,
   ClipboardList,
@@ -8,6 +9,7 @@ import {
   Link as LinkIcon,
   Sparkles
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 
 import type { AiPromptMode, AiStructuredResult } from "@recipai/ai";
@@ -210,6 +212,10 @@ export function AddRecipeWizard({
           <h2>Add recipe</h2>
           <p>Choose the fastest way to get a clean recipe into your family library.</p>
         </div>
+        <Link className="wizard-exit-link" href="/library" aria-label="Back to library">
+          <ArrowLeft aria-hidden="true" size={17} />
+          Library
+        </Link>
       </div>
 
       <section className="wizard-mode-card" aria-label="Recipe creation method">

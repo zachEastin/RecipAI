@@ -3,8 +3,8 @@ import {
   CalendarDays,
   ChefHat,
   ClipboardList,
-  MessageSquareText,
-  Settings
+  Settings,
+  type LucideIcon
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -15,9 +15,8 @@ const navItems: Array<{
   key: NavKey;
   label: string;
   href: string;
-  icon: typeof MessageSquareText;
+  icon: LucideIcon;
 }> = [
-  { key: "ask", label: "Ask", href: "/", icon: MessageSquareText },
   { key: "library", label: "Library", href: "/library", icon: BookOpen },
   { key: "plan", label: "Plan", href: "/plan", icon: CalendarDays },
   { key: "shop", label: "Shop", href: "/shop", icon: ClipboardList },

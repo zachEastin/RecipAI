@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("mobile core pages render and navigation is stable", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Ask for a recipe")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ask" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Library" }).click();
   await expect(page.getByRole("link", { name: "Add recipe" })).toBeVisible();
@@ -33,6 +34,9 @@ test("add recipe wizard unifies AI URL and manual creation", async ({ page }) =>
   await page.goto("/library/import?url=https%3A%2F%2Fexample.com%2Ffamily-dinner");
   await expect(page).toHaveURL(/\/library\/add\?mode=url/);
   await expect(page.locator('input[value="https://example.com/family-dinner"]')).toBeVisible();
+
+  await page.getByRole("link", { name: "Back to library" }).click();
+  await expect(page).toHaveURL(/\/library$/);
 });
 
 test("AI result can launch cooking mode as a draft", async ({ page }) => {
