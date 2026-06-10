@@ -549,25 +549,6 @@ export function AddRecipeWizard({
             </Button>
           </form>
 
-          <form className="wizard-inline-url" onSubmit={submitInlineUrl}>
-            <div>
-              <LinkIcon aria-hidden="true" size={19} />
-              <strong>Or add from a URL</strong>
-            </div>
-            <div className="wizard-inline-url-row">
-              <input
-                aria-label="Recipe URL"
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://www.example.com/recipe"
-                type="url"
-                value={url}
-              />
-              <button disabled={isWorking} type="submit">
-                Load
-              </button>
-            </div>
-          </form>
-
           {aiResult ? (
             <section className="wizard-review-panel">
               <div className="wizard-review-heading">
