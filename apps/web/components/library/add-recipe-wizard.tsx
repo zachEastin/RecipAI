@@ -93,7 +93,7 @@ const modeOptions: Array<{
     body: "Search recipe sources and save a result.",
     icon: Globe2,
     id: "web",
-    label: "Search Web",
+    label: "Web",
   },
   {
     body: "Type the recipe in by hand.",

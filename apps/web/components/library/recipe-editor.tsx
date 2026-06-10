@@ -549,14 +549,12 @@ export function RecipeEditor({
             </button>
           </div>
         ) : (
-          <label>
-            Ingredients
-            <textarea
-              rows={5}
-              value={state.ingredients}
-              onChange={(event) => updateIngredientText(event.target.value)}
-            />
-          </label>
+          <textarea
+            aria-label="Ingredients"
+            rows={5}
+            value={state.ingredients}
+            onChange={(event) => updateIngredientText(event.target.value)}
+          />
         )}
       </section>
       <label>
