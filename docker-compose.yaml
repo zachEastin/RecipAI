@@ -2,10 +2,18 @@ services:
   recipes:
     build: .
     container_name: recipai
+    init: true
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-file:./data/recipai.sqlite}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     volumes:
-      - .:/app
-      - /app/node_modules
-    command: npm run dev -- --host 0.0.0.0
+      - recipai-data:/app/data
+    command: npm --workspace @recipai/web run start -- --hostname 0.0.0.0
+
+volumes:
+  recipai-data:
