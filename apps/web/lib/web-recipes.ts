@@ -285,9 +285,9 @@ export async function searchWebRecipes({
       return [];
     }
 
-    const canUseCompactResults =
-      !selectedIngredients.length ||
-      (selectedIngredients.length === 1 && !selectedCategory && !selectedArea);
+    const selectedFilterCount =
+      (selectedCategory ? 1 : 0) + (selectedArea ? 1 : 0) + selectedIngredients.length;
+    const canUseCompactResults = selectedFilterCount === 1;
 
     if (canUseCompactResults) {
       return compactMeals.slice(0, 25).map(mealToSearchResult);

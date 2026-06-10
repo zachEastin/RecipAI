@@ -142,6 +142,57 @@ describe("web recipe adapter", () => {
     expect(recipes.map((recipe) => recipe.title)).toEqual(["Teriyaki Chicken Casserole"]);
   });
 
+  it("hydrates category results to apply a selected cuisine", async () => {
+    const fetchMock = vi.fn(async (url: URL) => {
+      const value = String(url);
+
+      if (value.includes("filter.php?c=Breakfast")) {
+        return Response.json({
+          meals: [
+            { idMeal: "1", strMeal: "Ful Medames" },
+            { idMeal: "2", strMeal: "Canadian Pancakes" }
+          ]
+        });
+      }
+
+      if (value.includes("lookup.php?i=1")) {
+        return Response.json({
+          meals: [
+            {
+              ...teriyakiMeal,
+              idMeal: "1",
+              strMeal: "Ful Medames",
+              strCategory: "Breakfast",
+              strArea: "Egyptian"
+            }
+          ]
+        });
+      }
+
+      return Response.json({
+        meals: [
+          {
+            ...teriyakiMeal,
+            idMeal: "2",
+            strMeal: "Canadian Pancakes",
+            strCategory: "Breakfast",
+            strArea: "Canadian"
+          }
+        ]
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const recipes = await searchWebRecipes({
+      area: "Egyptian",
+      category: "Breakfast",
+      query: ""
+    });
+
+    expect(String(fetchMock.mock.calls.at(0)?.at(0))).toContain("filter.php?c=Breakfast");
+    expect(recipes.map((recipe) => recipe.title)).toEqual(["Ful Medames"]);
+  });
+
   it("throws clear errors for failed upstream requests", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("failed", { status: 503 })));
 
