@@ -3433,16 +3433,15 @@ button {
 
 .settings-list {
   display: grid;
-  gap: 10px;
-  margin: 16px 0 0;
+  gap: 8px;
+  margin: 12px 0 0;
 }
 
 .settings-list div {
-  align-items: center;
   border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  padding-top: 10px;
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
 }
 
 .settings-list dt {
@@ -3453,6 +3452,7 @@ button {
 .settings-list dd {
   font-weight: 850;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .editor-form {
