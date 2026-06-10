@@ -3483,6 +3483,30 @@ button {
   width: 100%;
 }
 
+.editor-form .slot-checklist {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+.editor-form .slot-checklist label {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 9px 12px;
+}
+
+.editor-form .slot-checklist input {
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0;
+  width: 20px;
+}
+
 .ingredient-editor {
   display: grid;
   gap: 10px;
