@@ -3,9 +3,13 @@ FROM node:22
 WORKDIR /app
 
 COPY package*.json ./
+COPY apps/web/package*.json ./apps/web/
+
 RUN npm ci
 
 COPY . .
+
+RUN npm run build
 
 EXPOSE 3000
 
