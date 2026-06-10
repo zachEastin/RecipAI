@@ -2102,6 +2102,22 @@ button {
   gap: 9px;
 }
 
+.slot-checklist label span span {
+  align-items: flex-start;
+  display: grid;
+  gap: 2px;
+}
+
+.slot-checklist small {
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.slot-checklist-disabled {
+  opacity: 0.62;
+}
+
 .slot-checklist .meal-bar {
   height: 7px;
   width: 30px;

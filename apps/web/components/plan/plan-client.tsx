@@ -224,6 +224,7 @@ export function PlanClient({
   const [pickerQuery, setPickerQuery] = useState("");
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [generateRange, setGenerateRange] = useState({ startDate, endDate });
+  const [generateSelectedDates, setGenerateSelectedDates] = useState<string[] | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<Record<MealSlot, boolean>>({
     breakfast: true,
     lunch: true,
@@ -249,6 +250,16 @@ export function PlanClient({
     ? entryByKey.get(entryKey(pickerTarget.date, pickerTarget.mealSlot)) ?? null
     : null;
   const pickerRecipe = pickerEntry ? recipeById.get(pickerEntry.recipeId) ?? null : null;
+  const hasRecipeForSlot = useMemo(
+    () =>
+      Object.fromEntries(
+        MEAL_SLOTS.map((slot) => [
+          slot.key,
+          recipeList.some((recipe) => isRecipeEligibleForSlot(recipe, slot.key))
+        ]),
+      ) as Record<MealSlot, boolean>,
+    [recipeList],
+  );
   const pickerRecipes = useMemo(() => {
     return recipeList
       .map((recipe) => ({ recipe, score: fuzzyScore(recipe, pickerQuery) }))
@@ -281,10 +292,13 @@ export function PlanClient({
   }, [monthAnchor]);
   const selectedDateSet = useMemo(() => new Set(selectedDates), [selectedDates]);
   const generationDates = dateRangeInclusive(generateRange.startDate, generateRange.endDate);
-  const generationSlots = MEAL_SLOTS.filter((slot) => selectedSlots[slot.key]).map(
+  const activeGenerationDates = generateSelectedDates ?? generationDates;
+  const generationSlots = MEAL_SLOTS.filter(
+    (slot) => selectedSlots[slot.key] && hasRecipeForSlot[slot.key],
+  ).map(
     (slot) => slot.key,
   );
-  const generationSlotCount = generationDates.length * generationSlots.length;
+  const generationSlotCount = activeGenerationDates.length * generationSlots.length;
   const selectedGenerationSlotCount = selectedDates.length * generationSlots.length;
 
   function selectedEntry(mealSlot: MealSlot): PlanEntry | null {
@@ -595,6 +609,7 @@ export function PlanClient({
       return;
     }
 
+    setGenerateSelectedDates(selectedDates);
     setGenerateRange({
       startDate: selectedDates[0]!,
       endDate: selectedDates.at(-1)!
@@ -709,7 +724,12 @@ export function PlanClient({
         </div>
 
         <div className="plan-top-actions">
-          <Button onClick={() => setIsGenerateOpen(true)}>
+          <Button
+            onClick={() => {
+              setGenerateSelectedDates(null);
+              setIsGenerateOpen(true);
+            }}
+          >
             <Sparkles aria-hidden="true" size={17} />
             Generate
           </Button>
@@ -1030,7 +1050,7 @@ export function PlanClient({
           >
             <div className="recipe-picker-header">
               <div>
-                <p className="plan-date">{generationDates.length || 0} days</p>
+                <p className="plan-date">{activeGenerationDates.length || 0} days</p>
                 <h2 id="generate-plan-title">Generate plan</h2>
               </div>
               <button
@@ -1049,9 +1069,13 @@ export function PlanClient({
                 <input
                   type="date"
                   value={generateRange.startDate}
-                  onChange={(event) =>
-                    setGenerateRange((current) => ({ ...current, startDate: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setGenerateSelectedDates(null);
+                    setGenerateRange((current) => ({
+                      ...current,
+                      startDate: event.target.value
+                    }));
+                  }}
                 />
               </label>
               <label>
@@ -1059,32 +1083,47 @@ export function PlanClient({
                 <input
                   type="date"
                   value={generateRange.endDate}
-                  onChange={(event) =>
-                    setGenerateRange((current) => ({ ...current, endDate: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setGenerateSelectedDates(null);
+                    setGenerateRange((current) => ({
+                      ...current,
+                      endDate: event.target.value
+                    }));
+                  }}
                 />
               </label>
             </div>
 
             <div className="slot-checklist">
-              {MEAL_SLOTS.map((slot) => (
-                <label key={slot.key}>
-                  <span>
-                    <i className={`meal-bar meal-bar-${slot.key}`} />
-                    {slot.label}
-                  </span>
-                  <input
-                    checked={selectedSlots[slot.key]}
-                    onChange={(event) =>
-                      setSelectedSlots((current) => ({
-                        ...current,
-                        [slot.key]: event.target.checked
-                      }))
-                    }
-                    type="checkbox"
-                  />
-                </label>
-              ))}
+              {MEAL_SLOTS.map((slot) => {
+                const isAvailable = hasRecipeForSlot[slot.key];
+
+                return (
+                  <label
+                    className={isAvailable ? "" : "slot-checklist-disabled"}
+                    key={slot.key}
+                  >
+                    <span>
+                      <i className={`meal-bar meal-bar-${slot.key}`} />
+                      <span>
+                        {slot.label}
+                        {!isAvailable ? <small>No saved recipes</small> : null}
+                      </span>
+                    </span>
+                    <input
+                      checked={isAvailable && selectedSlots[slot.key]}
+                      disabled={!isAvailable}
+                      onChange={(event) =>
+                        setSelectedSlots((current) => ({
+                          ...current,
+                          [slot.key]: event.target.checked
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                  </label>
+                );
+              })}
             </div>
 
             <div className="generate-options">
@@ -1141,7 +1180,7 @@ export function PlanClient({
             <div className="generate-summary">
               <CalendarCheck aria-hidden="true" size={18} />
               <span>
-                {generationDates.length} days, {generationSlotCount} slots
+                {activeGenerationDates.length} days, {generationSlotCount} slots
               </span>
             </div>
 
@@ -1151,7 +1190,9 @@ export function PlanClient({
                 onClick={() =>
                   void generate({
                     mealSlots: generationSlots,
-                    range: generateRange,
+                    ...(generateSelectedDates
+                      ? { dates: generateSelectedDates }
+                      : { range: generateRange }),
                     closeModal: true
                   })
                 }
