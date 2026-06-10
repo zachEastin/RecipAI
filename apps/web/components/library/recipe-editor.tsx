@@ -5,6 +5,8 @@ import { useState, type FormEvent } from "react";
 
 import { MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
 
+import { parseIngredientLine, parseIngredientQuantityInput } from "@/lib/ingredient-parser";
+
 import { Button } from "../ui";
 
 type EditorState = {
@@ -20,6 +22,16 @@ type EditorState = {
   steps: string;
 };
 
+type IngredientEditMode = "structured" | "text";
+
+type IngredientRow = {
+  id: string;
+  quantity: string;
+  unit: string;
+  name: string;
+  note: string;
+};
+
 export type RecipeEditorDraft = {
   title: string;
   summary: string;
@@ -33,6 +45,75 @@ export type RecipeEditorDraft = {
   steps: string[];
   provenance?: Recipe["provenance"];
 };
+
+const COMMON_UNITS = [
+  "tsp",
+  "tbsp",
+  "cup",
+  "oz",
+  "lb",
+  "g",
+  "kg",
+  "ml",
+  "l",
+  "clove",
+  "can",
+  "jar",
+  "bunch",
+  "head",
+  "package",
+  "packet",
+  "slice",
+  "stick",
+  "sprig"
+] as const;
+
+function formatIngredientQuantity(quantity: number | null): string {
+  return quantity === null ? "" : String(quantity);
+}
+
+function ingredientLineFromRow(row: IngredientRow): string {
+  return [row.quantity, row.unit, row.name, row.note ? `(${row.note})` : ""]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function rowFromIngredientLine(line: string, index: number): IngredientRow {
+  const parsed = parseIngredientLine(line);
+
+  return {
+    id: `ingredient-${index}-${line}`,
+    quantity: formatIngredientQuantity(parsed.quantity),
+    unit: parsed.unit ?? "",
+    name: parsed.name,
+    note: parsed.note ?? ""
+  };
+}
+
+function ingredientRowsFromText(value: string): IngredientRow[] {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(rowFromIngredientLine);
+}
+
+function ingredientTextFromRows(rows: IngredientRow[]): string {
+  return rows.map(ingredientLineFromRow).filter(Boolean).join("\n");
+}
+
+function saveIngredientFromRow(row: IngredientRow) {
+  const parsedQuantity = parseIngredientQuantityInput(row.quantity);
+
+  return {
+    quantity: row.quantity.trim() ? parsedQuantity : null,
+    unit: row.unit.trim() || null,
+    name: row.name.trim(),
+    note: row.note.trim() || null,
+    groceryCategory: "Other"
+  };
+}
 
 function stateFromRecipe(
   recipe?: Recipe,
@@ -65,20 +146,6 @@ function stateFromRecipe(
   };
 }
 
-function parseIngredient(line: string) {
-  const parts = line.trim().split(/\s+/);
-  const first = Number(parts[0]);
-  const hasQuantity = Number.isFinite(first);
-
-  return {
-    quantity: hasQuantity ? first : null,
-    unit: hasQuantity && parts[1] ? parts[1] : null,
-    name: (hasQuantity ? parts.slice(2) : parts).join(" "),
-    note: null,
-    groceryCategory: "Other"
-  };
-}
-
 export function RecipeEditor({
   initialDraft,
   recipe,
@@ -90,11 +157,59 @@ export function RecipeEditor({
 }) {
   const router = useRouter();
   const [state, setState] = useState(() => stateFromRecipe(recipe, initialSource, initialDraft));
+  const [ingredientMode, setIngredientMode] = useState<IngredientEditMode>("structured");
+  const [ingredientRows, setIngredientRows] = useState(() => ingredientRowsFromText(state.ingredients));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   function update(key: keyof EditorState, value: string) {
     setState((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateIngredientText(value: string) {
+    setState((current) => ({ ...current, ingredients: value }));
+    setIngredientRows(ingredientRowsFromText(value));
+  }
+
+  function updateIngredientMode(mode: IngredientEditMode) {
+    if (mode === ingredientMode) {
+      return;
+    }
+
+    if (mode === "structured") {
+      setIngredientRows(ingredientRowsFromText(state.ingredients));
+    } else {
+      setState((current) => ({ ...current, ingredients: ingredientTextFromRows(ingredientRows) }));
+    }
+
+    setIngredientMode(mode);
+  }
+
+  function updateIngredientRow(id: string, key: keyof Omit<IngredientRow, "id">, value: string) {
+    setIngredientRows((current) => {
+      const next = current.map((row) => (row.id === id ? { ...row, [key]: value } : row));
+      setState((stateValue) => ({ ...stateValue, ingredients: ingredientTextFromRows(next) }));
+      return next;
+    });
+  }
+
+  function addIngredientRow() {
+    setIngredientRows((current) => {
+      const next = [
+        ...current,
+        { id: `ingredient-new-${Date.now()}`, quantity: "", unit: "", name: "", note: "" }
+      ];
+      setState((stateValue) => ({ ...stateValue, ingredients: ingredientTextFromRows(next) }));
+      return next;
+    });
+  }
+
+  function removeIngredientRow(id: string) {
+    setIngredientRows((current) => {
+      const next = current.filter((row) => row.id !== id);
+      setState((stateValue) => ({ ...stateValue, ingredients: ingredientTextFromRows(next) }));
+      return next;
+    });
   }
 
   function updateMealSlot(mealSlot: MealSlot, checked: boolean) {
@@ -125,11 +240,9 @@ export function RecipeEditor({
         .filter(Boolean),
       favorite: recipe?.favorite ?? false,
       provenance: recipe?.provenance ?? initialDraft?.provenance ?? "manual",
-      ingredients: state.ingredients
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map(parseIngredient),
+      ingredients: ingredientRows
+        .filter((row) => row.name.trim())
+        .map(saveIngredientFromRow),
       steps: state.steps
         .split("\n")
         .map((line) => line.trim())
@@ -227,14 +340,100 @@ export function RecipeEditor({
         Tags
         <input value={state.tags} onChange={(event) => update("tags", event.target.value)} />
       </label>
-      <label>
-        Ingredients
-        <textarea
-          rows={7}
-          value={state.ingredients}
-          onChange={(event) => update("ingredients", event.target.value)}
-        />
-      </label>
+      <section className="ingredient-editor">
+        <div className="ingredient-editor-header">
+          <div>
+            <h3>Ingredients</h3>
+          </div>
+          <div className="ingredient-mode-tabs" role="tablist" aria-label="Ingredient input mode">
+            <button
+              aria-selected={ingredientMode === "structured"}
+              onClick={() => updateIngredientMode("structured")}
+              role="tab"
+              type="button"
+            >
+              Fields
+            </button>
+            <button
+              aria-selected={ingredientMode === "text"}
+              onClick={() => updateIngredientMode("text")}
+              role="tab"
+              type="button"
+            >
+              Text
+            </button>
+          </div>
+        </div>
+        {ingredientMode === "structured" ? (
+          <div className="ingredient-row-list">
+            <datalist id="ingredient-unit-options">
+              {COMMON_UNITS.map((unit) => (
+                <option key={unit} value={unit} />
+              ))}
+            </datalist>
+            {ingredientRows.map((row, index) => (
+              <div className="ingredient-row-editor" key={row.id}>
+                <label>
+                  Amount
+                  <input
+                    aria-label={`Ingredient ${index + 1} amount`}
+                    inputMode="decimal"
+                    onChange={(event) =>
+                      updateIngredientRow(row.id, "quantity", event.target.value)
+                    }
+                    value={row.quantity}
+                  />
+                </label>
+                <label>
+                  Unit
+                  <input
+                    aria-label={`Ingredient ${index + 1} unit`}
+                    list="ingredient-unit-options"
+                    onChange={(event) => updateIngredientRow(row.id, "unit", event.target.value)}
+                    value={row.unit}
+                  />
+                </label>
+                <label>
+                  Name
+                  <input
+                    aria-label={`Ingredient ${index + 1} name`}
+                    onChange={(event) => updateIngredientRow(row.id, "name", event.target.value)}
+                    value={row.name}
+                  />
+                </label>
+                <label>
+                  Note
+                  <input
+                    aria-label={`Ingredient ${index + 1} note`}
+                    onChange={(event) => updateIngredientRow(row.id, "note", event.target.value)}
+                    value={row.note}
+                  />
+                </label>
+                <button
+                  aria-label={`Remove ingredient ${index + 1}`}
+                  className="ingredient-row-remove"
+                  onClick={() => removeIngredientRow(row.id)}
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button className="ingredient-add-row" onClick={addIngredientRow} type="button">
+              Add ingredient
+            </button>
+          </div>
+        ) : (
+          <label>
+            Ingredients
+            <textarea
+              rows={7}
+              value={state.ingredients}
+              onChange={(event) => updateIngredientText(event.target.value)}
+            />
+          </label>
+        )}
+      </section>
       <label>
         Steps
         <textarea

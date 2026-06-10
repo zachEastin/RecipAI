@@ -3009,6 +3009,85 @@ button {
   width: 100%;
 }
 
+.ingredient-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.ingredient-editor-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.ingredient-editor-header h3 {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+  margin: 0;
+}
+
+.ingredient-mode-tabs {
+  background: #edf5ef;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(68px, 1fr));
+  padding: 3px;
+}
+
+.ingredient-mode-tabs button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 850;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.ingredient-mode-tabs button[aria-selected="true"] {
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(20, 33, 28, 0.1);
+  color: var(--text);
+}
+
+.ingredient-row-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ingredient-row-editor {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(72px, 0.7fr) minmax(86px, 0.8fr) minmax(150px, 1.5fr) minmax(130px, 1.2fr) auto;
+}
+
+.ingredient-row-remove,
+.ingredient-add-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 850;
+  min-height: 42px;
+  padding: 9px 12px;
+}
+
+.ingredient-row-remove {
+  background: #fff8f6;
+  color: #984332;
+}
+
+.ingredient-add-row {
+  background: #edf5ef;
+  color: var(--primary);
+  justify-self: start;
+}
+
 .meal-slot-fieldset {
   border: 0;
   display: grid;
@@ -3063,7 +3142,10 @@ button {
 }
 
 .editor-form input:focus,
-.editor-form textarea:focus {
+.editor-form textarea:focus,
+.ingredient-mode-tabs button:focus,
+.ingredient-row-remove:focus,
+.ingredient-add-row:focus {
   border-color: var(--primary);
   outline: 3px solid rgba(21, 79, 59, 0.14);
 }
@@ -3162,6 +3244,31 @@ button {
 .nav-item-active {
   background: var(--primary);
   color: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .ingredient-editor-header {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .ingredient-mode-tabs {
+    width: 100%;
+  }
+
+  .ingredient-row-editor {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ingredient-row-editor label:nth-of-type(3),
+  .ingredient-row-editor label:nth-of-type(4),
+  .ingredient-row-remove {
+    grid-column: 1 / -1;
+  }
+
+  .ingredient-add-row {
+    justify-self: stretch;
+  }
 }
 
 @media (min-width: 760px) {

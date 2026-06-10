@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { AiPromptMode, AiStructuredResult } from "@recipai/ai";
@@ -135,7 +134,6 @@ export function AddRecipeWizard({
   initialUrl?: string;
   recipes: Recipe[];
 }) {
-  const router = useRouter();
   const [mode, setMode] = useState<WizardMode>(initialMode);
   const [aiPrompt, setAiPrompt] = useState(
     "Make a weeknight salmon dinner with rice and a vegetable.",
@@ -162,7 +160,6 @@ export function AddRecipeWizard({
   const [webResults, setWebResults] = useState<WebRecipeSearchResult[]>([]);
   const [hasSearchedWeb, setHasSearchedWeb] = useState(false);
   const [webDraft, setWebDraft] = useState<WebRecipeDraft | null>(null);
-  const [isSavingWebDraft, setIsSavingWebDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
 
@@ -282,12 +279,6 @@ export function AddRecipeWizard({
     await reviewUrlImport(url);
   }
 
-  async function submitInlineUrl(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMode("url");
-    await reviewUrlImport(url);
-  }
-
   function clearWebFilters() {
     setWebCategory("");
     setWebArea("");
@@ -372,55 +363,6 @@ export function AddRecipeWizard({
       setError(caught instanceof Error ? caught.message : "That web recipe could not be loaded.");
     } finally {
       setIsWorking(false);
-    }
-  }
-
-  async function saveWebDraft() {
-    if (!webDraft) {
-      return;
-    }
-
-    setError(null);
-    setIsSavingWebDraft(true);
-
-    try {
-      const response = await fetch("/api/recipes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: webDraft.title,
-          summary: webDraft.summary,
-          source: webDraft.source,
-          servings: webDraft.servings,
-          prepMinutes: webDraft.prepMinutes,
-          cookMinutes: webDraft.cookMinutes,
-          mealSlots: inferRecipeMealSlots(webDraft),
-          rating: 0,
-          tags: webDraft.tags,
-          favorite: false,
-          provenance: "web-search",
-          ingredients: webDraft.ingredients.map((ingredient) => ({
-            quantity: null,
-            unit: null,
-            name: ingredient,
-            note: null,
-            groceryCategory: "Other"
-          })),
-          steps: webDraft.steps.map((body) => ({ body, timerMinutes: null }))
-        })
-      });
-      const payload = (await response.json()) as { recipe?: Recipe; error?: string };
-
-      if (!response.ok || !payload.recipe) {
-        throw new Error(payload.error ?? "Recipe could not be saved.");
-      }
-
-      router.push(`/library/${payload.recipe.id}`);
-      router.refresh();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Recipe could not be saved.");
-    } finally {
-      setIsSavingWebDraft(false);
     }
   }
 
@@ -669,30 +611,7 @@ export function AddRecipeWizard({
                   </div>
                 </div>
               </div>
-              <div className="web-preview-section">
-                <h4>Ingredients ({webDraft.ingredients.length})</h4>
-                <ul className="web-ingredient-grid">
-                  {webDraft.ingredients.slice(0, 8).map((ingredient) => (
-                    <li key={ingredient}>{ingredient}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="web-preview-section">
-                <h4>Instructions ({webDraft.steps.length})</h4>
-                <ol className="web-step-list">
-                  {webDraft.steps.slice(0, 4).map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-              </div>
-              <Button
-                className="full-width web-save-button"
-                disabled={isSavingWebDraft}
-                onClick={() => void saveWebDraft()}
-                type="button"
-              >
-                {isSavingWebDraft ? "Saving..." : "Save recipe"}
-              </Button>
+              <RecipeEditor key={webDraft.sourceId} initialDraft={webDraft} />
             </section>
           ) : (
             <>
