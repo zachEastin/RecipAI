@@ -1,15 +1,22 @@
-import { CalendarDays, ChefHat, Clock, Heart, Pencil, Star, Users } from "lucide-react";
+import {
+  CalendarDays,
+  ChefHat,
+  Clock,
+  Heart,
+  Pencil,
+  Star,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getRecipeById } from "@recipai/db";
 
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui";
 import { openAppDatabase } from "@/lib/server-db";
 
 export default async function RecipeDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -29,12 +36,11 @@ export default async function RecipeDetailPage({
           <div>
             <div className="detail-flags">
               {recipe.favorite ? (
-                <span>
+                <span aria-label="Favorite">
                   <Heart aria-hidden="true" fill="currentColor" size={14} />
-                  Favorite
                 </span>
               ) : null}
-              <span>
+              <span aria-label={`${recipe.rating} star rating`}>
                 <Star aria-hidden="true" fill="currentColor" size={14} />
                 {recipe.rating}
               </span>
@@ -43,17 +49,19 @@ export default async function RecipeDetailPage({
             <p>{recipe.summary}</p>
           </div>
           <div className="detail-actions">
-            <Link href={`/cook?recipeId=${recipe.id}`}>
-              <Button>
-                <ChefHat aria-hidden="true" size={17} />
-                Cook
-              </Button>
+            <Link
+              className="button button-primary"
+              href={`/cook?recipeId=${recipe.id}`}
+            >
+              <ChefHat aria-hidden="true" size={17} />
+              Cook
             </Link>
-            <Link href={`/library/${recipe.id}/edit`}>
-              <Button variant="secondary">
-                <Pencil aria-hidden="true" size={17} />
-                Edit
-              </Button>
+            <Link
+              className="icon-toggle"
+              href={`/library/${recipe.id}/edit`}
+              aria-label={`Edit ${recipe.title}`}
+            >
+              <Pencil aria-hidden="true" size={17} />
             </Link>
           </div>
         </header>
@@ -69,7 +77,9 @@ export default async function RecipeDetailPage({
           </span>
           <span>
             <CalendarDays aria-hidden="true" size={17} />
-            {recipe.mealSlots.map((slot) => slot[0]!.toUpperCase() + slot.slice(1)).join(", ")}
+            {recipe.mealSlots
+              .map((slot) => slot[0]!.toUpperCase() + slot.slice(1))
+              .join(", ")}
           </span>
         </div>
 

@@ -3258,7 +3258,17 @@ button {
 .cook-step-actions,
 .detail-actions {
   display: flex;
-  gap: 9px;
+  gap: 8px;
+}
+
+.detail-actions {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.detail-actions .button {
+  min-height: 40px;
 }
 
 .cook-step-actions {
@@ -3724,8 +3734,8 @@ button {
   border-radius: 8px;
   box-shadow: var(--shadow);
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 13px;
 }
 
 .detail-hero h2,
@@ -3734,15 +3744,16 @@ button {
 }
 
 .detail-hero h2 {
-  font-size: 1.42rem;
+  font-size: 1.28rem;
   line-height: 1.13;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .detail-hero p {
   color: var(--muted);
-  line-height: 1.45;
-  margin-top: 8px;
+  font-size: 0.95rem;
+  line-height: 1.38;
+  margin-top: 6px;
 }
 
 .detail-flags,
@@ -3764,11 +3775,16 @@ button {
   padding: 6px 9px;
 }
 
+.detail-flags span {
+  min-height: 28px;
+  padding: 5px 8px;
+}
+
 .meta-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
 }
 
 .detail-list {
