@@ -1,12 +1,13 @@
 "use client";
 
-import { ChefHat, Heart, Plus, Search, Star } from "lucide-react";
+import { ChefHat, Heart, Plus, Search, Star, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 
 import type { Recipe } from "@recipai/recipes";
 
 import { Button } from "../ui";
+import { filterRecipes } from "./recipe-filters";
 
 export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) {
   const [recipes, setRecipes] = useState(initialRecipes);
@@ -15,7 +16,8 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
   const [tagFilter, setTagFilter] = useState("all");
   const [minRating, setMinRating] = useState(0);
   const [recentOnly, setRecentOnly] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const [ingredientThreshold, setIngredientThreshold] = useState(1);
 
   const availableTags = useMemo(() => {
     const tags = new Set<string>();
@@ -28,39 +30,70 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
     return [...tags].sort((a, b) => a.localeCompare(b));
   }, [recipes]);
 
-  const filteredRecipes = useMemo(() => {
-    return recipes.filter((recipe) => {
-      if (favoriteOnly && !recipe.favorite) {
-        return false;
+  const availableIngredients = useMemo(() => {
+    const ingredients = new Map<string, string>();
+
+    for (const recipe of recipes) {
+      for (const ingredient of recipe.ingredients) {
+        const trimmedName = ingredient.name.trim();
+
+        if (trimmedName) {
+          ingredients.set(trimmedName.toLowerCase(), trimmedName);
+        }
       }
-
-      if (tagFilter !== "all" && !recipe.tags.includes(tagFilter)) {
-        return false;
-      }
-
-      if (recipe.rating < minRating) {
-        return false;
-      }
-
-      if (recentOnly && !recipe.lastCookedAt) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [favoriteOnly, minRating, recentOnly, recipes, tagFilter]);
-
-  async function search(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsSearching(true);
-
-    try {
-      const response = await fetch(`/api/recipes?q=${encodeURIComponent(query)}`);
-      const payload = (await response.json()) as { recipes: Recipe[] };
-      setRecipes(payload.recipes);
-    } finally {
-      setIsSearching(false);
     }
+
+    return [...ingredients.values()].sort((a, b) => a.localeCompare(b));
+  }, [recipes]);
+
+  const ingredientOptions = useMemo(
+    () => availableIngredients.filter((ingredient) => !selectedIngredients.includes(ingredient)),
+    [availableIngredients, selectedIngredients],
+  );
+
+  const filteredRecipes = useMemo(() => {
+    return filterRecipes(recipes, {
+      favoriteOnly,
+      ingredientThreshold,
+      minRating,
+      query,
+      recentOnly,
+      selectedIngredients,
+      tagFilter
+    });
+  }, [
+    favoriteOnly,
+    ingredientThreshold,
+    minRating,
+    query,
+    recentOnly,
+    recipes,
+    selectedIngredients,
+    tagFilter
+  ]);
+
+  function addIngredientFilter(ingredient: string) {
+    if (ingredient === "all") {
+      return;
+    }
+
+    setSelectedIngredients((current) =>
+      current.includes(ingredient) ? current : [...current, ingredient],
+    );
+    setIngredientThreshold((current) => Math.max(1, current));
+  }
+
+  function removeIngredientFilter(ingredient: string) {
+    setSelectedIngredients((current) => current.filter((item) => item !== ingredient));
+  }
+
+  function clearFilters() {
+    setFavoriteOnly(false);
+    setTagFilter("all");
+    setMinRating(0);
+    setRecentOnly(false);
+    setSelectedIngredients([]);
+    setIngredientThreshold(1);
   }
 
   async function updateFavorite(recipe: Recipe) {
@@ -90,7 +123,7 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
   return (
     <div className="screen-stack">
       <div className="library-toolbar">
-        <form className="search-form" onSubmit={search}>
+        <form className="search-form" onSubmit={(event) => event.preventDefault()}>
           <Search aria-hidden="true" size={18} />
           <input
             aria-label="Search recipes"
@@ -98,7 +131,6 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
             placeholder="Search recipes"
             value={query}
           />
-          <button type="submit">{isSearching ? "..." : "Go"}</button>
         </form>
         <Link className="icon-action" href="/library/add" aria-label="Add recipe">
           <Plus aria-hidden="true" size={22} />
@@ -112,6 +144,13 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
         >
           Favorites
         </button>
+        <button
+          aria-pressed={recentOnly}
+          onClick={() => setRecentOnly((value) => !value)}
+          type="button"
+        >
+          Recent
+        </button>
         <label>
           Tag
           <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
@@ -123,6 +162,22 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
             ))}
           </select>
         </label>
+        {selectedIngredients.length > 0 ? (
+          <label>
+            Match
+            <select
+              aria-label="Ingredient match threshold"
+              onChange={(event) => setIngredientThreshold(Number(event.target.value))}
+              value={Math.min(ingredientThreshold, selectedIngredients.length)}
+            >
+              {selectedIngredients.map((ingredient, index) => (
+                <option key={ingredient} value={index + 1}>
+                  {index + 1}+
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <label>
           Rating
           <select
@@ -135,17 +190,50 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
             <option value={5}>5</option>
           </select>
         </label>
-        <button
-          aria-pressed={recentOnly}
-          onClick={() => setRecentOnly((value) => !value)}
-          type="button"
-        >
-          Recent
-        </button>
+        <label className="filter-wide">
+          Ingredient
+          <select
+            aria-label="Add ingredient filter"
+            onChange={(event) => addIngredientFilter(event.target.value)}
+            value="all"
+          >
+            <option value="all">Add</option>
+            {ingredientOptions.map((ingredient) => (
+              <option key={ingredient} value={ingredient}>
+                {ingredient}
+              </option>
+            ))}
+          </select>
+        </label>
+        {favoriteOnly ||
+        tagFilter !== "all" ||
+        minRating > 0 ||
+        recentOnly ||
+        selectedIngredients.length > 0 ? (
+          <button className="filter-clear" onClick={clearFilters} type="button">
+            Clear
+          </button>
+        ) : null}
       </div>
 
+      {selectedIngredients.length > 0 ? (
+        <div className="selected-filter-row" aria-label="Selected ingredient filters">
+          {selectedIngredients.map((ingredient) => (
+            <button
+              aria-label={`Remove ${ingredient}`}
+              key={ingredient}
+              onClick={() => removeIngredientFilter(ingredient)}
+              type="button"
+            >
+              {ingredient}
+              <X aria-hidden="true" size={14} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="recipe-list">
-        {filteredRecipes.map((recipe) => (
+        {filteredRecipes.map(({ ingredientMatchCount, recipe }) => (
           <article className="library-recipe-card" key={recipe.id}>
             <Link className="library-card-main" href={`/library/${recipe.id}`}>
               <h2>{recipe.title}</h2>
@@ -159,6 +247,11 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
                   <span key={tag}>{tag}</span>
                 ))}
               </div>
+              {selectedIngredients.length > 0 ? (
+                <div className="ingredient-match-badge">
+                  {ingredientMatchCount}/{selectedIngredients.length} ingredients
+                </div>
+              ) : null}
             </Link>
             <div className="library-card-actions">
               <button
