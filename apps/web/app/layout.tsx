@@ -5,7 +5,23 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "RecipAI",
-  description: "Local-first family recipe prompting, planning, and cooking."
+  description: "Local-first family recipe prompting, planning, and cooking.",
+  icons: {
+    icon: [
+      {
+        url: "/icons/recipai-icon.webp",
+        sizes: "512x512",
+        type: "image/webp"
+      }
+    ],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png"
+      }
+    ]
+  }
 };
 
 export const viewport: Viewport = {
