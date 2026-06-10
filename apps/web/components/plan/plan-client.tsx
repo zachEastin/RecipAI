@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Dice5,
+  ListRestart,
   Lock,
   LockOpen,
   Search,
@@ -15,6 +16,7 @@ import {
   Utensils,
   X
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState, type PointerEvent } from "react";
 
@@ -43,6 +45,12 @@ type SavedPlanEntry = {
 type PlanTarget = {
   date: string;
   mealSlot: MealSlot;
+};
+
+type ReviewPlanState = {
+  baselineEntries: PlanEntry[];
+  dates: string[];
+  mealSlots: MealSlot[];
 };
 
 type GenerateResponse = {
@@ -219,6 +227,7 @@ export function PlanClient({
   const [isBusy, setIsBusy] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [reviewPlan, setReviewPlan] = useState<ReviewPlanState | null>(null);
   const [shoppingListPrompt, setShoppingListPrompt] = useState<ShoppingListPrompt | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PlanTarget | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
@@ -300,6 +309,33 @@ export function PlanClient({
   );
   const generationSlotCount = activeGenerationDates.length * generationSlots.length;
   const selectedGenerationSlotCount = selectedDates.length * generationSlots.length;
+  const reviewDateSet = useMemo(
+    () => new Set(reviewPlan?.dates ?? []),
+    [reviewPlan],
+  );
+  const reviewSlotSet = useMemo(
+    () => new Set(reviewPlan?.mealSlots ?? []),
+    [reviewPlan],
+  );
+  const reviewEntries = useMemo(
+    () =>
+      entries.filter(
+        (entry) => reviewDateSet.has(entry.date) && reviewSlotSet.has(entry.mealSlot),
+      ),
+    [entries, reviewDateSet, reviewSlotSet],
+  );
+  const reviewUnlockedTargets = useMemo(() => {
+    if (!reviewPlan) {
+      return [];
+    }
+
+    return reviewPlan.dates.flatMap((date) =>
+      reviewPlan.mealSlots.flatMap((mealSlot) => {
+        const entry = entryByKey.get(entryKey(date, mealSlot));
+        return entry && !entry.locked ? [{ date, mealSlot }] : [];
+      }),
+    );
+  }, [entryByKey, reviewPlan]);
 
   function selectedEntry(mealSlot: MealSlot): PlanEntry | null {
     if (!selectedDate) {
@@ -318,13 +354,17 @@ export function PlanClient({
     rerollTargets,
     dates,
     range,
-    closeModal = false
+    closeModal = false,
+    openReview = false,
+    preserveReviewBaseline = false
   }: {
     mealSlots: MealSlot[];
     rerollTargets?: PlanTarget[];
     dates?: string[];
     range?: { startDate: string; endDate: string };
     closeModal?: boolean;
+    openReview?: boolean;
+    preserveReviewBaseline?: boolean;
   }) {
     if (mealSlots.length === 0) {
       setStatus("Choose at least one meal slot.");
@@ -359,9 +399,21 @@ export function PlanClient({
         throw new Error(payload.error ?? "Could not generate a meal plan.");
       }
 
+      const reviewDates = dates ?? (range ? dateRangeInclusive(range.startDate, range.endDate) : []);
+      const baselineEntries = preserveReviewBaseline
+        ? reviewPlan?.baselineEntries
+        : entries;
+
       mergeGenerated(payload.assignments);
       setRecipeList(payload.recipes);
       setStatus("Generated a meal plan. Save it when it looks right.");
+      if (openReview && reviewDates.length > 0 && baselineEntries) {
+        setReviewPlan({
+          baselineEntries,
+          dates: sortedDates(reviewDates),
+          mealSlots
+        });
+      }
       if (closeModal) {
         setIsGenerateOpen(false);
       }
@@ -398,6 +450,7 @@ export function PlanClient({
             locked: entry.locked
           })),
       );
+      setReviewPlan(null);
       setStatus("Meal plan saved.");
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : "Could not save the meal plan.");
@@ -615,6 +668,30 @@ export function PlanClient({
       endDate: selectedDates.at(-1)!
     });
     setIsGenerateOpen(true);
+  }
+
+  function cancelReviewPlan() {
+    if (!reviewPlan) {
+      return;
+    }
+
+    setEntries(reviewPlan.baselineEntries);
+    setReviewPlan(null);
+    setStatus("Generated plan discarded.");
+  }
+
+  async function generateReviewUnlocked() {
+    if (!reviewPlan || reviewUnlockedTargets.length === 0) {
+      setStatus("No unlocked meals to regenerate.");
+      return;
+    }
+
+    await generate({
+      mealSlots: reviewPlan.mealSlots,
+      rerollTargets: reviewUnlockedTargets,
+      dates: reviewPlan.dates,
+      preserveReviewBaseline: true
+    });
   }
 
   async function postSelectedShoppingList(mode: "preview" | "create" | "override" | "add-missing") {
@@ -851,6 +928,157 @@ export function PlanClient({
         ) : null}
         {status ? <p className="status-text">{status}</p> : null}
       </section>
+
+      {reviewPlan ? (
+        <div
+          className="recipe-picker-backdrop plan-review-backdrop"
+          role="presentation"
+          onClick={cancelReviewPlan}
+        >
+          <section
+            aria-labelledby="plan-review-title"
+            aria-modal="true"
+            className="plan-review-sheet"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="recipe-picker-header plan-review-header">
+              <div>
+                <p className="plan-date">
+                  {reviewPlan.dates.length} {reviewPlan.dates.length === 1 ? "day" : "days"} ·{" "}
+                  {reviewEntries.length} meals
+                </p>
+                <h2 id="plan-review-title">Review generated plan</h2>
+                <p>{describeSelectedDates(reviewPlan.dates)}</p>
+              </div>
+              <button
+                aria-label="Discard generated plan"
+                className="icon-toggle"
+                onClick={cancelReviewPlan}
+                type="button"
+              >
+                <X aria-hidden="true" size={18} />
+              </button>
+            </div>
+
+            <div className="plan-review-list">
+              {reviewPlan.dates.map((date) => (
+                <section className="plan-review-day" key={date}>
+                  <h3>{formatDate(date)}</h3>
+                  <div className="plan-review-meals">
+                    {reviewPlan.mealSlots.map((mealSlot) => {
+                      const entry = entryByKey.get(entryKey(date, mealSlot)) ?? null;
+                      const recipe = entry ? recipeById.get(entry.recipeId) ?? null : null;
+                      const isLocked = entry?.locked ?? false;
+
+                      return (
+                        <article
+                          className={
+                            isLocked
+                              ? "plan-review-row plan-review-row-locked"
+                              : "plan-review-row"
+                          }
+                          key={`${date}-${mealSlot}`}
+                        >
+                          <span className={`meal-slot-marker meal-bar-${mealSlot}`} />
+                          {recipe?.imageUrl ? (
+                            <Image
+                              alt=""
+                              height={58}
+                              className="plan-review-thumbnail"
+                              src={recipe.imageUrl}
+                              unoptimized
+                              width={58}
+                            />
+                          ) : (
+                            <span className={`plan-review-thumbnail plan-review-thumbnail-empty meal-bar-${mealSlot}`}>
+                              {recipe?.title.charAt(0) ?? "?"}
+                            </span>
+                          )}
+                          <div className="plan-review-row-main">
+                            <p>{slotLabel(mealSlot)}</p>
+                            <h4>{recipe?.title ?? "Not planned"}</h4>
+                            <span>
+                              {recipe
+                                ? `${recipe.prepMinutes + recipe.cookMinutes} min · ${recipe.servings} servings`
+                                : "Pick manually or regenerate this meal."}
+                            </span>
+                          </div>
+                          <div className="plan-review-row-actions">
+                            <button
+                              aria-label={
+                                isLocked
+                                  ? `Unlock ${slotLabel(mealSlot)} for ${formatDate(date)}`
+                                  : `Lock ${slotLabel(mealSlot)} for ${formatDate(date)}`
+                              }
+                              className={isLocked ? "icon-toggle icon-toggle-active" : "icon-toggle"}
+                              disabled={!entry}
+                              onClick={() => toggleLock(date, mealSlot)}
+                              type="button"
+                            >
+                              {isLocked ? (
+                                <Lock aria-hidden="true" size={16} />
+                              ) : (
+                                <LockOpen aria-hidden="true" size={16} />
+                              )}
+                            </button>
+                            <button
+                              aria-label={`Regenerate ${slotLabel(mealSlot)} for ${formatDate(date)}`}
+                              className="icon-toggle"
+                              disabled={isBusy || isLocked || !hasRecipeForSlot[mealSlot]}
+                              onClick={() =>
+                                void generate({
+                                  mealSlots: [mealSlot],
+                                  rerollTargets: [{ date, mealSlot }],
+                                  dates: [date],
+                                  preserveReviewBaseline: true
+                                })
+                              }
+                              type="button"
+                            >
+                              <Dice5 aria-hidden="true" size={16} />
+                            </button>
+                            <button
+                              className="pick-recipe-button"
+                              onClick={() => openPicker({ date, mealSlot })}
+                              type="button"
+                            >
+                              Pick
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="plan-review-footer">
+              <button className="plan-today-button" onClick={cancelReviewPlan} type="button">
+                Cancel
+              </button>
+              <Button
+                disabled={isBusy || entries.length === 0}
+                onClick={() => void save()}
+                type="button"
+                variant="secondary"
+              >
+                <Check aria-hidden="true" size={17} />
+                Save plan
+              </Button>
+              <Button
+                disabled={isBusy || reviewUnlockedTargets.length === 0}
+                onClick={() => void generateReviewUnlocked()}
+                type="button"
+              >
+                <ListRestart aria-hidden="true" size={17} />
+                Generate unlocked
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {shoppingListPrompt ? (
         <div
@@ -1193,7 +1421,8 @@ export function PlanClient({
                     ...(generateSelectedDates
                       ? { dates: generateSelectedDates }
                       : { range: generateRange }),
-                    closeModal: true
+                    closeModal: true,
+                    openReview: true
                   })
                 }
               >
