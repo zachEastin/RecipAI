@@ -6,7 +6,10 @@ import { Trash2 } from "lucide-react";
 
 import { MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
 
-import { parseIngredientLine, parseIngredientQuantityInput } from "@/lib/ingredient-parser";
+import {
+  parseIngredientLine,
+  parseIngredientQuantityInput,
+} from "@/lib/ingredient-parser";
 
 import { Button } from "../ui";
 
@@ -66,7 +69,7 @@ const COMMON_UNITS = [
   "packet",
   "slice",
   "stick",
-  "sprig"
+  "sprig",
 ] as const;
 
 function formatIngredientQuantity(quantity: number | null): string {
@@ -88,7 +91,7 @@ function rowFromIngredientLine(line: string, index: number): IngredientRow {
     quantity: formatIngredientQuantity(parsed.quantity),
     unit: parsed.unit ?? "",
     name: parsed.name,
-    note: parsed.note ?? ""
+    note: parsed.note ?? "",
   };
 }
 
@@ -112,7 +115,7 @@ function saveIngredientFromRow(row: IngredientRow) {
     unit: row.unit.trim() || null,
     name: row.name.trim(),
     note: row.note.trim() || null,
-    groceryCategory: "Other"
+    groceryCategory: "Other",
   };
 }
 
@@ -120,7 +123,7 @@ function EditableIngredientCell({
   ariaLabel,
   onChange,
   placeholder,
-  value
+  value,
 }: {
   ariaLabel: string;
   onChange: (value: string) => void;
@@ -157,35 +160,52 @@ function stateFromRecipe(
     mealSlots: Object.fromEntries(
       MEAL_SLOTS.map((slot) => [
         slot,
-        (recipe?.mealSlots ?? initialDraft?.mealSlots ?? ["dinner"]).includes(slot)
+        (recipe?.mealSlots ?? initialDraft?.mealSlots ?? ["dinner"]).includes(
+          slot,
+        ),
       ]),
     ) as Record<MealSlot, boolean>,
     tags: recipe?.tags.join(", ") ?? initialDraft?.tags.join(", ") ?? "",
     ingredients:
       recipe?.ingredients
         .map((item) =>
-          [item.quantity ?? "", item.unit ?? "", item.name, item.note ? `(${item.note})` : ""]
+          [
+            item.quantity ?? "",
+            item.unit ?? "",
+            item.name,
+            item.note ? `(${item.note})` : "",
+          ]
             .filter(Boolean)
             .join(" "),
         )
-        .join("\n") ?? initialDraft?.ingredients.join("\n") ?? "",
-    steps: recipe?.steps.map((step) => step.body).join("\n") ?? initialDraft?.steps.join("\n") ?? ""
+        .join("\n") ??
+      initialDraft?.ingredients.join("\n") ??
+      "",
+    steps:
+      recipe?.steps.map((step) => step.body).join("\n") ??
+      initialDraft?.steps.join("\n") ??
+      "",
   };
 }
 
 export function RecipeEditor({
   initialDraft,
   recipe,
-  initialSource = ""
+  initialSource = "",
 }: {
   initialDraft?: RecipeEditorDraft;
   recipe?: Recipe;
   initialSource?: string;
 }) {
   const router = useRouter();
-  const [state, setState] = useState(() => stateFromRecipe(recipe, initialSource, initialDraft));
-  const [ingredientMode, setIngredientMode] = useState<IngredientEditMode>("structured");
-  const [ingredientRows, setIngredientRows] = useState(() => ingredientRowsFromText(state.ingredients));
+  const [state, setState] = useState(() =>
+    stateFromRecipe(recipe, initialSource, initialDraft),
+  );
+  const [ingredientMode, setIngredientMode] =
+    useState<IngredientEditMode>("text");
+  const [ingredientRows, setIngredientRows] = useState(() =>
+    ingredientRowsFromText(state.ingredients),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -206,16 +226,28 @@ export function RecipeEditor({
     if (mode === "structured") {
       setIngredientRows(ingredientRowsFromText(state.ingredients));
     } else {
-      setState((current) => ({ ...current, ingredients: ingredientTextFromRows(ingredientRows) }));
+      setState((current) => ({
+        ...current,
+        ingredients: ingredientTextFromRows(ingredientRows),
+      }));
     }
 
     setIngredientMode(mode);
   }
 
-  function updateIngredientRow(id: string, key: keyof Omit<IngredientRow, "id">, value: string) {
+  function updateIngredientRow(
+    id: string,
+    key: keyof Omit<IngredientRow, "id">,
+    value: string,
+  ) {
     setIngredientRows((current) => {
-      const next = current.map((row) => (row.id === id ? { ...row, [key]: value } : row));
-      setState((stateValue) => ({ ...stateValue, ingredients: ingredientTextFromRows(next) }));
+      const next = current.map((row) =>
+        row.id === id ? { ...row, [key]: value } : row,
+      );
+      setState((stateValue) => ({
+        ...stateValue,
+        ingredients: ingredientTextFromRows(next),
+      }));
       return next;
     });
   }
@@ -224,9 +256,18 @@ export function RecipeEditor({
     setIngredientRows((current) => {
       const next = [
         ...current,
-        { id: `ingredient-new-${Date.now()}`, quantity: "", unit: "", name: "", note: "" }
+        {
+          id: `ingredient-new-${Date.now()}`,
+          quantity: "",
+          unit: "",
+          name: "",
+          note: "",
+        },
       ];
-      setState((stateValue) => ({ ...stateValue, ingredients: ingredientTextFromRows(next) }));
+      setState((stateValue) => ({
+        ...stateValue,
+        ingredients: ingredientTextFromRows(next),
+      }));
       return next;
     });
   }
@@ -234,7 +275,10 @@ export function RecipeEditor({
   function removeIngredientRow(id: string) {
     setIngredientRows((current) => {
       const next = current.filter((row) => row.id !== id);
-      setState((stateValue) => ({ ...stateValue, ingredients: ingredientTextFromRows(next) }));
+      setState((stateValue) => ({
+        ...stateValue,
+        ingredients: ingredientTextFromRows(next),
+      }));
       return next;
     });
   }
@@ -242,7 +286,7 @@ export function RecipeEditor({
   function updateMealSlot(mealSlot: MealSlot, checked: boolean) {
     setState((current) => ({
       ...current,
-      mealSlots: { ...current.mealSlots, [mealSlot]: checked }
+      mealSlots: { ...current.mealSlots, [mealSlot]: checked },
     }));
   }
 
@@ -274,16 +318,22 @@ export function RecipeEditor({
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean)
-        .map((body) => ({ body, timerMinutes: null }))
+        .map((body) => ({ body, timerMinutes: null })),
     };
 
     try {
-      const response = await fetch(recipe ? `/api/recipes/${recipe.id}` : "/api/recipes", {
-        method: recipe ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const body = (await response.json()) as { recipe?: Recipe; error?: string };
+      const response = await fetch(
+        recipe ? `/api/recipes/${recipe.id}` : "/api/recipes",
+        {
+          method: recipe ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const body = (await response.json()) as {
+        recipe?: Recipe;
+        error?: string;
+      };
 
       if (!response.ok || !body.recipe) {
         throw new Error(body.error ?? "Recipe could not be saved.");
@@ -292,7 +342,9 @@ export function RecipeEditor({
       router.push(`/library/${body.recipe.id}`);
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Recipe could not be saved.");
+      setError(
+        caught instanceof Error ? caught.message : "Recipe could not be saved.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -308,7 +360,10 @@ export function RecipeEditor({
       ) : null}
       <label>
         Title
-        <input value={state.title} onChange={(event) => update("title", event.target.value)} />
+        <input
+          value={state.title}
+          onChange={(event) => update("title", event.target.value)}
+        />
       </label>
       <label>
         Summary
@@ -320,7 +375,10 @@ export function RecipeEditor({
       </label>
       <label>
         Source
-        <input value={state.source} onChange={(event) => update("source", event.target.value)} />
+        <input
+          value={state.source}
+          onChange={(event) => update("source", event.target.value)}
+        />
       </label>
       <div className="form-grid">
         <label>
@@ -365,22 +423,21 @@ export function RecipeEditor({
       </fieldset>
       <label>
         Tags
-        <input value={state.tags} onChange={(event) => update("tags", event.target.value)} />
+        <input
+          value={state.tags}
+          onChange={(event) => update("tags", event.target.value)}
+        />
       </label>
       <section className="ingredient-editor">
         <div className="ingredient-editor-header">
           <div>
             <h3>Ingredients</h3>
           </div>
-          <div className="ingredient-mode-tabs" role="tablist" aria-label="Ingredient input mode">
-            <button
-              aria-selected={ingredientMode === "structured"}
-              onClick={() => updateIngredientMode("structured")}
-              role="tab"
-              type="button"
-            >
-              Fields
-            </button>
+          <div
+            className="ingredient-mode-tabs"
+            role="tablist"
+            aria-label="Ingredient input mode"
+          >
             <button
               aria-selected={ingredientMode === "text"}
               onClick={() => updateIngredientMode("text")}
@@ -388,6 +445,14 @@ export function RecipeEditor({
               type="button"
             >
               Text
+            </button>
+            <button
+              aria-selected={ingredientMode === "structured"}
+              onClick={() => updateIngredientMode("structured")}
+              role="tab"
+              type="button"
+            >
+              Fields
             </button>
           </div>
         </div>
@@ -416,7 +481,11 @@ export function RecipeEditor({
                         aria-label={`Ingredient ${index + 1} amount`}
                         inputMode="decimal"
                         onChange={(event) =>
-                          updateIngredientRow(row.id, "quantity", event.target.value)
+                          updateIngredientRow(
+                            row.id,
+                            "quantity",
+                            event.target.value,
+                          )
                         }
                         placeholder="--"
                         value={row.quantity}
@@ -427,7 +496,11 @@ export function RecipeEditor({
                         aria-label={`Ingredient ${index + 1} unit`}
                         list="ingredient-unit-options"
                         onChange={(event) =>
-                          updateIngredientRow(row.id, "unit", event.target.value)
+                          updateIngredientRow(
+                            row.id,
+                            "unit",
+                            event.target.value,
+                          )
                         }
                         placeholder="--"
                         value={row.unit}
@@ -436,7 +509,9 @@ export function RecipeEditor({
                     <td>
                       <EditableIngredientCell
                         ariaLabel={`Ingredient ${index + 1} name`}
-                        onChange={(value) => updateIngredientRow(row.id, "name", value)}
+                        onChange={(value) =>
+                          updateIngredientRow(row.id, "name", value)
+                        }
                         placeholder="Ingredient"
                         value={row.name}
                       />
@@ -444,7 +519,9 @@ export function RecipeEditor({
                     <td>
                       <EditableIngredientCell
                         ariaLabel={`Ingredient ${index + 1} note`}
-                        onChange={(value) => updateIngredientRow(row.id, "note", value)}
+                        onChange={(value) =>
+                          updateIngredientRow(row.id, "note", value)
+                        }
                         placeholder="--"
                         value={row.note}
                       />
@@ -463,7 +540,11 @@ export function RecipeEditor({
                 ))}
               </tbody>
             </table>
-            <button className="ingredient-add-row" onClick={addIngredientRow} type="button">
+            <button
+              className="ingredient-add-row"
+              onClick={addIngredientRow}
+              type="button"
+            >
               Add ingredient
             </button>
           </div>
@@ -471,7 +552,7 @@ export function RecipeEditor({
           <label>
             Ingredients
             <textarea
-              rows={7}
+              rows={5}
               value={state.ingredients}
               onChange={(event) => updateIngredientText(event.target.value)}
             />
