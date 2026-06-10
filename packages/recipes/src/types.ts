@@ -35,7 +35,7 @@ export type Recipe = {
   favorite: boolean;
   lastCookedAt: string | null;
   imageUrl: string | null;
-  provenance: "seed" | "manual" | "url-import" | "ai-generated";
+  provenance: "seed" | "manual" | "url-import" | "ai-generated" | "web-search";
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
 };

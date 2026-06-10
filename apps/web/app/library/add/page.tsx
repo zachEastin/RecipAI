@@ -3,10 +3,10 @@ import { AppShell } from "@/components/app-shell";
 import { openAppDatabase } from "@/lib/server-db";
 import { listRecipes } from "@recipai/db";
 
-type WizardMode = "ai" | "url" | "manual";
+type WizardMode = "ai" | "url" | "web" | "manual";
 
 function parseMode(mode?: string): WizardMode {
-  if (mode === "url" || mode === "manual") {
+  if (mode === "url" || mode === "web" || mode === "manual") {
     return mode;
   }
 

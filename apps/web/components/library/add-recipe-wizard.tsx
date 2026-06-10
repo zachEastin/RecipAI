@@ -4,13 +4,19 @@ import {
   ArrowLeft,
   Bot,
   CheckCircle2,
+  ChevronRight,
   ClipboardList,
   FilePenLine,
+  Globe2,
   Link as LinkIcon,
-  Sparkles
+  Search,
+  Sparkles,
+  X
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { AiPromptMode, AiStructuredResult } from "@recipai/ai";
 import { inferRecipeMealSlots, type Recipe } from "@recipai/recipes";
@@ -19,7 +25,7 @@ import { AiResultView } from "../ask/ai-result-view";
 import { Button, TextArea } from "../ui";
 import { RecipeEditor, type RecipeEditorDraft } from "./recipe-editor";
 
-type WizardMode = "ai" | "url" | "manual";
+type WizardMode = "ai" | "url" | "web" | "manual";
 type WizardStep = "choose" | "draft" | "review";
 
 type AiPromptResponse = {
@@ -34,6 +40,31 @@ type ImportResponse = {
     parserStatus?: string;
   };
   error?: string;
+};
+
+type WebRecipeOption = {
+  id: string;
+  label: string;
+};
+
+type WebRecipeOptions = {
+  areas: WebRecipeOption[];
+  categories: WebRecipeOption[];
+  ingredients: WebRecipeOption[];
+};
+
+type WebRecipeSearchResult = {
+  id: string;
+  title: string;
+  category: string | null;
+  area: string | null;
+  thumbnailUrl: string | null;
+  tags: string[];
+};
+
+type WebRecipeDraft = RecipeEditorDraft & {
+  imageUrl: string | null;
+  sourceId: string;
 };
 
 const promptChips = [
@@ -60,6 +91,12 @@ const modeOptions: Array<{
     icon: LinkIcon,
     id: "url",
     label: "URL"
+  },
+  {
+    body: "Search recipe sources and save a result.",
+    icon: Globe2,
+    id: "web",
+    label: "Search Web"
   },
   {
     body: "Type the recipe in by hand.",
@@ -98,6 +135,7 @@ export function AddRecipeWizard({
   initialUrl?: string;
   recipes: Recipe[];
 }) {
+  const router = useRouter();
   const [mode, setMode] = useState<WizardMode>(initialMode);
   const [aiPrompt, setAiPrompt] = useState(
     "Make a weeknight salmon dinner with rice and a vegetable.",
@@ -111,6 +149,20 @@ export function AddRecipeWizard({
   const [urlDraft, setUrlDraft] = useState<RecipeEditorDraft | null>(null);
   const [urlNotes, setUrlNotes] = useState<string[]>([]);
   const [urlStatus, setUrlStatus] = useState<string | null>(null);
+  const [webQuery, setWebQuery] = useState("");
+  const [showWebIngredients, setShowWebIngredients] = useState(false);
+  const [webCategory, setWebCategory] = useState("");
+  const [webArea, setWebArea] = useState("");
+  const [webIngredients, setWebIngredients] = useState<string[]>([]);
+  const [webOptions, setWebOptions] = useState<WebRecipeOptions>({
+    areas: [],
+    categories: [],
+    ingredients: []
+  });
+  const [webResults, setWebResults] = useState<WebRecipeSearchResult[]>([]);
+  const [hasSearchedWeb, setHasSearchedWeb] = useState(false);
+  const [webDraft, setWebDraft] = useState<WebRecipeDraft | null>(null);
+  const [isSavingWebDraft, setIsSavingWebDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
 
@@ -118,8 +170,38 @@ export function AddRecipeWizard({
     () => recipes.find((recipe) => recipe.id === sourceRecipeId) ?? recipes[0] ?? null,
     [recipes, sourceRecipeId],
   );
-  const hasDraft = Boolean(aiResult || urlDraft);
+  const hasDraft = Boolean(aiResult || urlDraft || webDraft);
   const activeStep = stepForMode(mode, hasDraft);
+  useEffect(() => {
+    if (mode !== "web" || webOptions.categories.length) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadWebOptions() {
+      try {
+        const response = await fetch("/api/web-recipes/options");
+        const payload = (await response.json()) as {
+          options?: WebRecipeOptions;
+        };
+
+        if (response.ok && payload.options && isActive) {
+          setWebOptions(payload.options);
+        }
+      } catch {
+        if (isActive) {
+          setWebOptions({ areas: [], categories: [], ingredients: [] });
+        }
+      }
+    }
+
+    void loadWebOptions();
+
+    return () => {
+      isActive = false;
+    };
+  }, [mode, webOptions.categories.length]);
 
   function chooseMode(nextMode: WizardMode) {
     setMode(nextMode);
@@ -206,12 +288,147 @@ export function AddRecipeWizard({
     await reviewUrlImport(url);
   }
 
+  function clearWebFilters() {
+    setWebCategory("");
+    setWebArea("");
+    setWebIngredients([]);
+  }
+
+  function toggleWebIngredient(ingredient: string, checked: boolean) {
+    setWebIngredients((current) => {
+      if (checked) {
+        return current.some((item) => item.toLowerCase() === ingredient.toLowerCase())
+          ? current
+          : [...current, ingredient];
+      }
+
+      return current.filter((item) => item !== ingredient);
+    });
+  }
+
+  async function searchWeb(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setWebDraft(null);
+    setIsWorking(true);
+
+    const params = new URLSearchParams();
+    if (webQuery.trim()) {
+      params.set("q", webQuery.trim());
+    }
+
+    if (webCategory) {
+      params.set("category", webCategory);
+    }
+
+    if (webArea) {
+      params.set("area", webArea);
+    }
+
+    for (const ingredient of webIngredients) {
+      params.append("ingredient", ingredient);
+    }
+
+    try {
+      const response = await fetch(`/api/web-recipes/search?${params.toString()}`);
+      const payload = (await response.json()) as {
+        recipes?: WebRecipeSearchResult[];
+        error?: string;
+      };
+
+      if (!response.ok || !payload.recipes) {
+        throw new Error(payload.error ?? "Web recipe search could not be completed.");
+      }
+
+      setWebResults(payload.recipes);
+      setHasSearchedWeb(true);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Web recipe search could not be completed.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function reviewWebRecipe(recipeId: string) {
+    setError(null);
+    setIsWorking(true);
+
+    try {
+      const response = await fetch(`/api/web-recipes/${encodeURIComponent(recipeId)}`);
+      const payload = (await response.json()) as {
+        draft?: WebRecipeDraft;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.draft) {
+        throw new Error(payload.error ?? "That web recipe could not be loaded.");
+      }
+
+      setWebDraft({
+        ...payload.draft,
+        mealSlots: inferRecipeMealSlots(payload.draft)
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "That web recipe could not be loaded.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function saveWebDraft() {
+    if (!webDraft) {
+      return;
+    }
+
+    setError(null);
+    setIsSavingWebDraft(true);
+
+    try {
+      const response = await fetch("/api/recipes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: webDraft.title,
+          summary: webDraft.summary,
+          source: webDraft.source,
+          servings: webDraft.servings,
+          prepMinutes: webDraft.prepMinutes,
+          cookMinutes: webDraft.cookMinutes,
+          mealSlots: inferRecipeMealSlots(webDraft),
+          rating: 0,
+          tags: webDraft.tags,
+          favorite: false,
+          provenance: "web-search",
+          ingredients: webDraft.ingredients.map((ingredient) => ({
+            quantity: null,
+            unit: null,
+            name: ingredient,
+            note: null,
+            groceryCategory: "Other"
+          })),
+          steps: webDraft.steps.map((body) => ({ body, timerMinutes: null }))
+        })
+      });
+      const payload = (await response.json()) as { recipe?: Recipe; error?: string };
+
+      if (!response.ok || !payload.recipe) {
+        throw new Error(payload.error ?? "Recipe could not be saved.");
+      }
+
+      router.push(`/library/${payload.recipe.id}`);
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Recipe could not be saved.");
+    } finally {
+      setIsSavingWebDraft(false);
+    }
+  }
+
   return (
     <div className="screen-stack add-wizard">
       <div className="wizard-title">
         <div>
           <h2>Add recipe</h2>
-          <p>Choose the fastest way to get a clean recipe into your family library.</p>
         </div>
         <Link className="wizard-exit-link" href="/library" aria-label="Back to library">
           <ArrowLeft aria-hidden="true" size={17} />
@@ -238,18 +455,20 @@ export function AddRecipeWizard({
         })}
       </section>
 
-      <div className="wizard-step-rail" aria-label="Add recipe progress">
-        {(["choose", "draft", "review"] as const).map((step, index) => (
-          <span
-            aria-current={activeStep === step ? "step" : undefined}
-            className={activeStep === step ? "wizard-step-active" : ""}
-            key={step}
-          >
-            <i>{index + 1}</i>
-            {step}
-          </span>
-        ))}
-      </div>
+      {mode === "web" ? null : (
+        <div className="wizard-step-rail" aria-label="Add recipe progress">
+          {(["choose", "draft", "review"] as const).map((step, index) => (
+            <span
+              aria-current={activeStep === step ? "step" : undefined}
+              className={activeStep === step ? "wizard-step-active" : ""}
+              key={step}
+            >
+              <i>{index + 1}</i>
+              {step}
+            </span>
+          ))}
+        </div>
+      )}
 
       {error ? (
         <section className="error-panel">
@@ -422,6 +641,275 @@ export function AddRecipeWizard({
                 <p>The parsed title, ingredients, steps, and source will appear here before saving.</p>
               </div>
             </section>
+          )}
+        </section>
+      ) : null}
+
+      {mode === "web" ? (
+        <section className="web-search-screen" aria-label="Search web recipes">
+          {webDraft ? (
+            <section className="web-review-screen">
+              <button
+                className="web-back-button"
+                onClick={() => {
+                  setWebDraft(null);
+                  setError(null);
+                }}
+                type="button"
+              >
+                <ArrowLeft aria-hidden="true" size={17} />
+                Back to results
+              </button>
+              <div className="web-review-hero">
+                {webDraft.imageUrl ? (
+                  <Image
+                    alt=""
+                    height={118}
+                    src={webDraft.imageUrl}
+                    unoptimized
+                    width={118}
+                  />
+                ) : (
+                  <div className="web-review-image-empty">
+                    <Globe2 aria-hidden="true" size={26} />
+                  </div>
+                )}
+                <div>
+                  <h3>Review recipe</h3>
+                  <h4>{webDraft.title}</h4>
+                  <p>{webDraft.summary}</p>
+                  <div className="web-tag-row">
+                    {webDraft.tags
+                      .filter((tag) => tag !== "web-search")
+                      .slice(0, 3)
+                      .map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                  </div>
+                </div>
+              </div>
+              <div className="web-preview-section">
+                <h4>Ingredients ({webDraft.ingredients.length})</h4>
+                <ul className="web-ingredient-grid">
+                  {webDraft.ingredients.slice(0, 8).map((ingredient) => (
+                    <li key={ingredient}>{ingredient}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="web-preview-section">
+                <h4>Instructions ({webDraft.steps.length})</h4>
+                <ol className="web-step-list">
+                  {webDraft.steps.slice(0, 4).map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+              <Button
+                className="full-width web-save-button"
+                disabled={isSavingWebDraft}
+                onClick={() => void saveWebDraft()}
+                type="button"
+              >
+                {isSavingWebDraft ? "Saving..." : "Save recipe"}
+              </Button>
+            </section>
+          ) : (
+            <>
+              <form className="web-search-card" onSubmit={searchWeb}>
+                <label className="web-search-input">
+                  <Search aria-hidden="true" size={19} />
+                  <input
+                    aria-label="Search recipes"
+                    onChange={(event) => setWebQuery(event.target.value)}
+                    placeholder="Search recipes"
+                    value={webQuery}
+                  />
+                  {webQuery ? (
+                    <button
+                      aria-label="Clear search"
+                      onClick={() => setWebQuery("")}
+                      type="button"
+                    >
+                      <X aria-hidden="true" size={17} />
+                    </button>
+                  ) : null}
+                </label>
+                <div className="web-filter-strip">
+                  <label>
+                    <span>Category</span>
+                    <select
+                      aria-label="Category"
+                      onChange={(event) => setWebCategory(event.target.value)}
+                      value={webCategory}
+                    >
+                      <option value="">All</option>
+                      {webOptions.categories.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Cuisine</span>
+                    <select
+                      aria-label="Cuisine"
+                      onChange={(event) => setWebArea(event.target.value)}
+                      value={webArea}
+                    >
+                      <option value="">All</option>
+                      {webOptions.areas.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    aria-expanded={showWebIngredients}
+                    className="web-ingredient-strip-button"
+                    onClick={() => setShowWebIngredients((value) => !value)}
+                    type="button"
+                  >
+                    <span>Ingredients</span>
+                    <strong>{webIngredients.length || "All"}</strong>
+                  </button>
+                </div>
+                {showWebIngredients || webIngredients.length ? (
+                  <section className="web-filter-panel" aria-label="Ingredient filters">
+                    {showWebIngredients ? (
+                      <div className="web-ingredient-menu">
+                        <div className="web-ingredient-toggle-list">
+                          {webOptions.ingredients.slice(0, 80).map((option) => {
+                            const checked = webIngredients.includes(option.id);
+
+                            return (
+                              <label key={option.id}>
+                                <span>{option.label}</span>
+                                <input
+                                  checked={checked}
+                                  onChange={(event) =>
+                                    toggleWebIngredient(option.id, event.target.checked)
+                                  }
+                                  type="checkbox"
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                    {webIngredients.length ? (
+                      <div className="web-selected-ingredients" aria-label="Selected ingredients">
+                        {webIngredients.map((ingredient) => (
+                          <button
+                            aria-label={`Remove ${ingredient}`}
+                            key={ingredient}
+                            onClick={() =>
+                              setWebIngredients((current) =>
+                                current.filter((item) => item !== ingredient),
+                              )
+                            }
+                            type="button"
+                          >
+                            {ingredient}
+                            <X aria-hidden="true" size={14} />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="web-filter-note">
+                      Free web search supports one ingredient upstream. Multiple ingredients are
+                      matched after loading recipe details.
+                    </div>
+                    {webCategory || webArea || webIngredients.length ? (
+                      <button
+                        className="web-clear-filters"
+                        onClick={clearWebFilters}
+                        type="button"
+                      >
+                        Clear filters
+                      </button>
+                    ) : null}
+                  </section>
+                ) : null}
+                <Button className="full-width" disabled={isWorking} type="submit">
+                  {isWorking ? "Searching..." : "Search Web"}
+                </Button>
+              </form>
+              <section className="web-results-panel">
+                <div className="web-results-heading">
+                  <h3>Results</h3>
+                  <span>{webResults.length}</span>
+                </div>
+                {webResults.length ? (
+                  <div className="web-result-list">
+                    {webResults.map((result) => (
+                      <article className="web-result-row" key={result.id}>
+                        {result.thumbnailUrl ? (
+                          <Image
+                            alt=""
+                            height={82}
+                            src={result.thumbnailUrl}
+                            unoptimized
+                            width={88}
+                          />
+                        ) : (
+                          <div className="web-result-image-empty">
+                            <Globe2 aria-hidden="true" size={22} />
+                          </div>
+                        )}
+                        <div className="web-result-main">
+                          <h4>{result.title}</h4>
+                          <p>
+                            {[result.category, result.area].filter(Boolean).join(" • ") ||
+                              "Web recipe"}
+                          </p>
+                          <div className="web-tag-row">
+                            {result.tags.slice(0, 3).map((tag) => (
+                              <span key={tag}>{tag}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          className="web-review-button"
+                          disabled={isWorking}
+                          onClick={() => void reviewWebRecipe(result.id)}
+                          type="button"
+                        >
+                          Review
+                        </button>
+                        <button
+                          aria-label={`Review ${result.title}`}
+                          className="web-chevron-button"
+                          disabled={isWorking}
+                          onClick={() => void reviewWebRecipe(result.id)}
+                          type="button"
+                        >
+                          <ChevronRight aria-hidden="true" size={19} />
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={hasSearchedWeb ? "web-empty-state web-no-results" : "web-empty-state"}>
+                    {hasSearchedWeb ? (
+                      <>
+                        <Search aria-hidden="true" size={24} />
+                        <h3>No web recipes found</h3>
+                        <p>Nothing matched this search. Try fewer ingredients or clear a filter.</p>
+                      </>
+                    ) : (
+                      <>
+                        <Globe2 aria-hidden="true" size={24} />
+                        <h3>Search recipes</h3>
+                        <p>Try a recipe name, or pick a filter and search.</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </section>
+            </>
           )}
         </section>
       ) : null}

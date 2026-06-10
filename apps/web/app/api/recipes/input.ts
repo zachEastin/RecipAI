@@ -15,7 +15,7 @@ export const recipeInputSchema = z.object({
   rating: z.number().int().min(0).max(5).optional(),
   tags: z.array(z.string().trim().min(1)),
   favorite: z.boolean().optional(),
-  provenance: z.enum(["seed", "manual", "url-import", "ai-generated"]).default("manual"),
+  provenance: z.enum(["seed", "manual", "url-import", "ai-generated", "web-search"]).default("manual"),
   ingredients: z
     .array(
       z.object({

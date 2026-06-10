@@ -26,6 +26,11 @@ test("add recipe wizard unifies AI URL and manual creation", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Review import" })).toBeVisible();
   await expect(page.getByPlaceholder("https://example.com/favorite-dinner")).toBeVisible();
 
+  await page.getByRole("button", { name: /Search Web/ }).click();
+  await expect(page.getByPlaceholder("Search recipes")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search Web" })).toBeVisible();
+  await expect(page.getByText("Try a recipe name, or pick a filter and search.")).toBeVisible();
+
   await page.getByRole("button", { name: /Manual/ }).click();
   await expect(page.getByRole("button", { name: "Save recipe" })).toBeVisible();
 
