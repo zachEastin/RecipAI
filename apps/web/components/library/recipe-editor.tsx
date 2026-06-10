@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import type { Recipe } from "@recipai/recipes";
+import { MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
 
 import { Button } from "../ui";
 
@@ -14,6 +14,7 @@ type EditorState = {
   servings: string;
   prepMinutes: string;
   cookMinutes: string;
+  mealSlots: Record<MealSlot, boolean>;
   tags: string;
   ingredients: string;
   steps: string;
@@ -26,6 +27,7 @@ export type RecipeEditorDraft = {
   servings: number;
   prepMinutes: number;
   cookMinutes: number;
+  mealSlots?: MealSlot[];
   tags: string[];
   ingredients: string[];
   steps: string[];
@@ -44,6 +46,12 @@ function stateFromRecipe(
     servings: String(recipe?.servings ?? initialDraft?.servings ?? 4),
     prepMinutes: String(recipe?.prepMinutes ?? initialDraft?.prepMinutes ?? 10),
     cookMinutes: String(recipe?.cookMinutes ?? initialDraft?.cookMinutes ?? 20),
+    mealSlots: Object.fromEntries(
+      MEAL_SLOTS.map((slot) => [
+        slot,
+        (recipe?.mealSlots ?? initialDraft?.mealSlots ?? ["dinner"]).includes(slot)
+      ]),
+    ) as Record<MealSlot, boolean>,
     tags: recipe?.tags.join(", ") ?? initialDraft?.tags.join(", ") ?? "",
     ingredients:
       recipe?.ingredients
@@ -89,6 +97,13 @@ export function RecipeEditor({
     setState((current) => ({ ...current, [key]: value }));
   }
 
+  function updateMealSlot(mealSlot: MealSlot, checked: boolean) {
+    setState((current) => ({
+      ...current,
+      mealSlots: { ...current.mealSlots, [mealSlot]: checked }
+    }));
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -102,6 +117,7 @@ export function RecipeEditor({
       servings: Number(state.servings),
       prepMinutes: Number(state.prepMinutes),
       cookMinutes: Number(state.cookMinutes),
+      mealSlots: MEAL_SLOTS.filter((slot) => state.mealSlots[slot]),
       rating: recipe?.rating ?? 0,
       tags: state.tags
         .split(",")
@@ -192,6 +208,21 @@ export function RecipeEditor({
           />
         </label>
       </div>
+      <fieldset className="meal-slot-fieldset">
+        <legend>Meal type</legend>
+        <div className="slot-checklist">
+          {MEAL_SLOTS.map((slot) => (
+            <label key={slot}>
+              <span>{slot[0]!.toUpperCase() + slot.slice(1)}</span>
+              <input
+                checked={state.mealSlots[slot]}
+                onChange={(event) => updateMealSlot(slot, event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <label>
         Tags
         <input value={state.tags} onChange={(event) => update("tags", event.target.value)} />

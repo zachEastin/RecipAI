@@ -8,6 +8,7 @@ import {
   updateAiRunSaveStatus,
   type SaveRecipeInput
 } from "@recipai/db";
+import { inferRecipeMealSlots } from "@recipai/recipes";
 
 import { openAppDatabase } from "@/lib/server-db";
 
@@ -43,6 +44,7 @@ function toSaveRecipeInput(
     servings: result.servings,
     prepMinutes,
     cookMinutes,
+    mealSlots: inferRecipeMealSlots(result),
     rating: 0,
     tags: result.tags,
     favorite: false,

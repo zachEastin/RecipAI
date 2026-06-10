@@ -1,4 +1,4 @@
-import { ChefHat, Clock, Heart, Pencil, Star, Users } from "lucide-react";
+import { CalendarDays, ChefHat, Clock, Heart, Pencil, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -66,6 +66,10 @@ export default async function RecipeDetailPage({
           <span>
             <Users aria-hidden="true" size={17} />
             {recipe.servings} servings
+          </span>
+          <span>
+            <CalendarDays aria-hidden="true" size={17} />
+            {recipe.mealSlots.map((slot) => slot[0]!.toUpperCase() + slot.slice(1)).join(", ")}
           </span>
         </div>
 

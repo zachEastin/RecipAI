@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { getRecipeById, saveRecipe } from "@recipai/db";
-import type { SaveRecipeInput } from "@recipai/db";
 
 import { openAppDatabase } from "@/lib/server-db";
+import { recipeInputSchema, toSaveRecipeInput } from "../input";
 
 export async function GET(
   _request: Request,
@@ -30,7 +30,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const payload = (await request.json()) as SaveRecipeInput;
+  const parsed = recipeInputSchema.safeParse(await request.json());
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Recipe needs a title, ingredients, and steps." }, { status: 400 });
+  }
+
   const db = openAppDatabase();
 
   try {
@@ -40,7 +45,7 @@ export async function PUT(
       return NextResponse.json({ error: "Recipe not found." }, { status: 404 });
     }
 
-    const recipe = saveRecipe(db, { ...payload, id });
+    const recipe = saveRecipe(db, { ...toSaveRecipeInput(parsed.data), id });
     return NextResponse.json({ recipe });
   } finally {
     db.close();

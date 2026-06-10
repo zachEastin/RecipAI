@@ -78,6 +78,7 @@ describe("database migrations", () => {
       servings: 4,
       prepMinutes: 5,
       cookMinutes: 15,
+      mealSlots: ["lunch", "dinner"],
       rating: 4,
       tags: ["pasta", "fast"],
       provenance: "manual",
@@ -92,6 +93,7 @@ describe("database migrations", () => {
     });
 
     expect(getRecipeById(db, recipe.id)?.title).toBe("Garlic Tomato Pasta");
+    expect(getRecipeById(db, recipe.id)?.mealSlots).toEqual(["lunch", "dinner"]);
     expect(searchRecipes(db, "garlic")[0]?.id).toBe(recipe.id);
     expect(searchRecipes(db, "sauce")[0]?.id).toBe(recipe.id);
     expect(searchRecipes(db, "family")[0]?.id).toBe(recipe.id);
@@ -176,6 +178,7 @@ describe("database migrations", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.mealSlot).toBe("dinner");
     expect(entries[0]?.locked).toBe(true);
+    expect(getRecipeById(db, "recipe_1")?.mealSlots).toEqual(["dinner"]);
     db.close();
   });
 

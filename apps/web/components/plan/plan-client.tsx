@@ -193,6 +193,9 @@ export function PlanClient({
   const [preserveLocked, setPreserveLocked] = useState(true);
   const [fillEmptyOnly, setFillEmptyOnly] = useState(false);
   const [avoidRepeats, setAvoidRepeats] = useState(true);
+  const [avoidRecentMeals, setAvoidRecentMeals] = useState(true);
+  const [preferQuickWeekdays, setPreferQuickWeekdays] = useState(true);
+  const [addVariety, setAddVariety] = useState(true);
 
   const recipeById = useMemo(
     () => new Map(recipeList.map((recipe) => [recipe.id, recipe])),
@@ -285,7 +288,10 @@ export function PlanClient({
           rerollTargets,
           preserveLocked,
           fillEmptyOnly,
-          avoidRepeats
+          avoidRepeats,
+          avoidRecentMeals,
+          preferQuickWeekdays,
+          addVariety
         })
       });
       const payload = (await response.json()) as GenerateResponse;
@@ -395,6 +401,10 @@ export function PlanClient({
 
   function slotLabel(mealSlot: MealSlot): string {
     return MEAL_SLOTS.find((slot) => slot.key === mealSlot)?.label ?? mealSlot;
+  }
+
+  function isRecipeEligibleForSlot(recipe: Recipe, mealSlot: MealSlot): boolean {
+    return recipe.mealSlots.includes(mealSlot);
   }
 
   function toggleLock(date: string, mealSlot: MealSlot) {
@@ -749,6 +759,30 @@ export function PlanClient({
                   type="checkbox"
                 />
               </label>
+              <label>
+                <span>Avoid recent meals</span>
+                <input
+                  checked={avoidRecentMeals}
+                  onChange={(event) => setAvoidRecentMeals(event.target.checked)}
+                  type="checkbox"
+                />
+              </label>
+              <label>
+                <span>Prefer quick weekdays</span>
+                <input
+                  checked={preferQuickWeekdays}
+                  onChange={(event) => setPreferQuickWeekdays(event.target.checked)}
+                  type="checkbox"
+                />
+              </label>
+              <label>
+                <span>Add variety</span>
+                <input
+                  checked={addVariety}
+                  onChange={(event) => setAddVariety(event.target.checked)}
+                  type="checkbox"
+                />
+              </label>
             </div>
 
             <div className="generate-summary">
@@ -814,9 +848,16 @@ export function PlanClient({
             <div className="recipe-picker-results">
               {pickerRecipes.map((recipe) => {
                 const isSelected = recipe.id === pickerEntry?.recipeId;
+                const isEligible = isRecipeEligibleForSlot(recipe, pickerTarget.mealSlot);
                 return (
                   <button
-                    className={isSelected ? "picker-result picker-result-active" : "picker-result"}
+                    className={[
+                      "picker-result",
+                      isSelected ? "picker-result-active" : "",
+                      isEligible ? "" : "picker-result-warning"
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     key={recipe.id}
                     onClick={() => pickRecipe(pickerTarget, recipe)}
                     type="button"
@@ -826,7 +867,11 @@ export function PlanClient({
                       <small>
                         {recipe.prepMinutes + recipe.cookMinutes} min · {recipe.servings} servings
                       </small>
-                      <em>{recipe.tags.slice(0, 3).join(" · ")}</em>
+                      <em>
+                        {isEligible
+                          ? recipe.tags.slice(0, 3).join(" · ")
+                          : `Not marked for ${slotLabel(pickerTarget.mealSlot).toLowerCase()}`}
+                      </em>
                     </span>
                     {isSelected ? <Check aria-hidden="true" size={19} /> : null}
                   </button>

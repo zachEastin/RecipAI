@@ -24,8 +24,20 @@ export function openDatabase(databasePath = databasePathFromUrl()): Database.Dat
 
 export function migrate(db: Database.Database): void {
   db.exec(schemaSql);
+  migrateRecipeMealSlots(db);
   migrateMealPlans(db);
   migrateRecipeSearch(db);
+}
+
+function migrateRecipeMealSlots(db: Database.Database): void {
+  const columns = db.prepare("PRAGMA table_info(recipes)").all() as Array<{ name: string }>;
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (columnNames.has("meal_slots_json")) {
+    return;
+  }
+
+  db.prepare("ALTER TABLE recipes ADD COLUMN meal_slots_json TEXT NOT NULL DEFAULT '[\"dinner\"]'").run();
 }
 
 function migrateMealPlans(db: Database.Database): void {

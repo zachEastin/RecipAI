@@ -5,7 +5,8 @@ import { listRecipes } from "@recipai/db";
 import {
   dateRangeInclusive,
   generateMealPlan,
-  type GenerateMealPlanInput
+  type GenerateMealPlanInput,
+  type MealSlot
 } from "@recipai/meal-planning";
 
 import { openAppDatabase } from "@/lib/server-db";
@@ -30,7 +31,10 @@ const schema = z.object({
   rerollTargets: z.array(targetSchema).optional(),
   preserveLocked: z.boolean().optional(),
   fillEmptyOnly: z.boolean().optional(),
-  avoidRepeats: z.boolean().optional()
+  avoidRepeats: z.boolean().optional(),
+  avoidRecentMeals: z.boolean().optional(),
+  preferQuickWeekdays: z.boolean().optional(),
+  addVariety: z.boolean().optional()
 });
 
 export async function POST(request: Request) {
@@ -49,10 +53,36 @@ export async function POST(request: Request) {
 
   try {
     const recipes = listRecipes(db);
+    const mealSlots: MealSlot[] = parsed.data.mealSlots?.length
+      ? parsed.data.mealSlots
+      : ["dinner"];
+    const missingSlots = mealSlots.filter(
+      (mealSlot) => !recipes.some((recipe) => recipe.mealSlots.includes(mealSlot)),
+    );
+
+    if (missingSlots.length > 0) {
+      return NextResponse.json(
+        {
+          error: `No saved recipes are marked for ${missingSlots.join(", ")}. Edit recipes to enable those meal slots.`
+        },
+        { status: 400 },
+      );
+    }
+
     const input: GenerateMealPlanInput = {
       dates,
-      mealSlots: parsed.data.mealSlots?.length ? parsed.data.mealSlots : ["dinner"],
-      recipes: recipes.map((recipe) => ({ id: recipe.id, title: recipe.title }))
+      mealSlots,
+      recipes: recipes.map((recipe) => ({
+        id: recipe.id,
+        title: recipe.title,
+        mealSlots: recipe.mealSlots,
+        prepMinutes: recipe.prepMinutes,
+        cookMinutes: recipe.cookMinutes,
+        rating: recipe.rating,
+        favorite: recipe.favorite,
+        lastCookedAt: recipe.lastCookedAt,
+        tags: recipe.tags
+      }))
     };
 
     if (parsed.data.existingAssignments) {
@@ -73,6 +103,18 @@ export async function POST(request: Request) {
 
     if (parsed.data.avoidRepeats !== undefined) {
       input.avoidRepeats = parsed.data.avoidRepeats;
+    }
+
+    if (parsed.data.avoidRecentMeals !== undefined) {
+      input.avoidRecentMeals = parsed.data.avoidRecentMeals;
+    }
+
+    if (parsed.data.preferQuickWeekdays !== undefined) {
+      input.preferQuickWeekdays = parsed.data.preferQuickWeekdays;
+    }
+
+    if (parsed.data.addVariety !== undefined) {
+      input.addVariety = parsed.data.addVariety;
     }
 
     const assignments = generateMealPlan(input);

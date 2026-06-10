@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { dateRangeInclusive, defaultDinnerPlanRange, generateDinnerPlan, generateMealPlan } from "./index";
 
 const recipes = [
-  { id: "a", title: "A" },
-  { id: "b", title: "B" },
-  { id: "c", title: "C" }
+  { id: "a", title: "A", mealSlots: ["lunch" as const, "dinner" as const] },
+  { id: "b", title: "B", mealSlots: ["dinner" as const] },
+  { id: "c", title: "C", mealSlots: ["dinner" as const] }
 ];
 
 describe("meal planning", () => {
@@ -30,7 +30,11 @@ describe("meal planning", () => {
     const plan = generateMealPlan({
       dates: ["2026-06-08", "2026-06-09"],
       mealSlots: ["breakfast", "lunch", "dinner"],
-      recipes,
+      recipes: [
+        { id: "breakfast", title: "Breakfast", mealSlots: ["breakfast"] },
+        { id: "lunch", title: "Lunch", mealSlots: ["lunch"] },
+        { id: "dinner", title: "Dinner", mealSlots: ["dinner"] }
+      ],
       random: () => 0
     });
 
@@ -43,6 +47,79 @@ describe("meal planning", () => {
       "2026-06-09:lunch",
       "2026-06-09:dinner"
     ]);
+  });
+
+  it("only assigns recipes marked for the target meal slot", () => {
+    const plan = generateMealPlan({
+      dates: ["2026-06-08"],
+      mealSlots: ["breakfast", "dinner"],
+      recipes: [
+        { id: "eggs", title: "Eggs", mealSlots: ["breakfast"] },
+        { id: "pasta", title: "Pasta", mealSlots: ["dinner"] }
+      ],
+      random: () => 0
+    });
+
+    expect(plan).toEqual([
+      { date: "2026-06-08", mealSlot: "breakfast", recipeId: "eggs", locked: false },
+      { date: "2026-06-08", mealSlot: "dinner", recipeId: "pasta", locked: false }
+    ]);
+  });
+
+  it("skips slots with no eligible candidates", () => {
+    const plan = generateMealPlan({
+      dates: ["2026-06-08"],
+      mealSlots: ["breakfast"],
+      recipes,
+      random: () => 0
+    });
+
+    expect(plan).toEqual([]);
+  });
+
+  it("preserves locked assignments even when recipe eligibility changed", () => {
+    const plan = generateMealPlan({
+      dates: ["2026-06-08"],
+      mealSlots: ["breakfast"],
+      recipes,
+      existingAssignments: [
+        { date: "2026-06-08", mealSlot: "breakfast", recipeId: "a", locked: true }
+      ],
+      rerollTargets: [{ date: "2026-06-08", mealSlot: "breakfast" }],
+      random: () => 0
+    });
+
+    expect(plan).toEqual([
+      { date: "2026-06-08", mealSlot: "breakfast", recipeId: "a", locked: true }
+    ]);
+  });
+
+  it("prefers quick weekday meals when that option is enabled", () => {
+    const plan = generateMealPlan({
+      dates: ["2026-06-08"],
+      mealSlots: ["lunch"],
+      recipes: [
+        {
+          id: "project",
+          title: "Project Lunch",
+          mealSlots: ["lunch"],
+          prepMinutes: 30,
+          cookMinutes: 40,
+          rating: 5
+        },
+        {
+          id: "quick",
+          title: "Quick Lunch",
+          mealSlots: ["lunch"],
+          prepMinutes: 5,
+          cookMinutes: 8,
+          rating: 3
+        }
+      ],
+      random: () => 0
+    });
+
+    expect(plan[0]?.recipeId).toBe("quick");
   });
 
   it("preserves locked assignments during reroll", () => {

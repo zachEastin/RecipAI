@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   servings INTEGER NOT NULL,
   prep_minutes INTEGER NOT NULL,
   cook_minutes INTEGER NOT NULL,
+  meal_slots_json TEXT NOT NULL DEFAULT '["dinner"]',
   rating INTEGER NOT NULL DEFAULT 0,
   tags_json TEXT NOT NULL,
   favorite INTEGER NOT NULL DEFAULT 0,

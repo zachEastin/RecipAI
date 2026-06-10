@@ -1,2 +1,4 @@
 export { seedRecipes } from "./seed-recipes";
-export type { Recipe, RecipeIngredient, RecipeStep } from "./types";
+export { inferRecipeMealSlots, normalizeMealSlots } from "./meal-slots";
+export { MEAL_SLOTS } from "./types";
+export type { MealSlot, Recipe, RecipeIngredient, RecipeStep } from "./types";

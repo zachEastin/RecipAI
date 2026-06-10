@@ -1,3 +1,7 @@
+export const MEAL_SLOTS = ["breakfast", "lunch", "dinner"] as const;
+
+export type MealSlot = (typeof MEAL_SLOTS)[number];
+
 export type RecipeIngredient = {
   id: string;
   recipeId: string;
@@ -25,6 +29,7 @@ export type Recipe = {
   servings: number;
   prepMinutes: number;
   cookMinutes: number;
+  mealSlots: MealSlot[];
   rating: number;
   tags: string[];
   favorite: boolean;

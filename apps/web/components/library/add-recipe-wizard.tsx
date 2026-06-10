@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 
 import type { AiPromptMode, AiStructuredResult } from "@recipai/ai";
-import type { Recipe } from "@recipai/recipes";
+import { inferRecipeMealSlots, type Recipe } from "@recipai/recipes";
 
 import { AiResultView } from "../ask/ai-result-view";
 import { Button, TextArea } from "../ui";
@@ -181,6 +181,7 @@ export function AddRecipeWizard({
         prepMinutes: payload.review.prepMinutes,
         cookMinutes: payload.review.cookMinutes,
         tags: payload.review.tags,
+        mealSlots: inferRecipeMealSlots(payload.review),
         ingredients: payload.review.ingredients,
         steps: payload.review.steps,
         provenance: "url-import"

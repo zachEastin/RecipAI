@@ -1,6 +1,13 @@
 import type Database from "better-sqlite3";
 
-import type { Recipe, RecipeIngredient, RecipeStep } from "@recipai/recipes";
+import {
+  inferRecipeMealSlots,
+  normalizeMealSlots,
+  type MealSlot,
+  type Recipe,
+  type RecipeIngredient,
+  type RecipeStep
+} from "@recipai/recipes";
 
 type RecipeRow = {
   id: string;
@@ -10,6 +17,7 @@ type RecipeRow = {
   servings: number;
   prep_minutes: number;
   cook_minutes: number;
+  meal_slots_json: string;
   rating: number;
   tags_json: string;
   favorite: number;
@@ -73,6 +81,7 @@ function mapRecipe(
     servings: row.servings,
     prepMinutes: row.prep_minutes,
     cookMinutes: row.cook_minutes,
+    mealSlots: normalizeMealSlots(JSON.parse(row.meal_slots_json) as string[]),
     rating: row.rating,
     tags: JSON.parse(row.tags_json) as string[],
     favorite: row.favorite === 1,
@@ -152,6 +161,7 @@ export type SaveRecipeInput = {
   servings: number;
   prepMinutes: number;
   cookMinutes: number;
+  mealSlots?: MealSlot[];
   rating?: number;
   tags: string[];
   favorite?: boolean;
@@ -223,15 +233,16 @@ export function rebuildAllRecipeSearch(db: Database.Database): void {
 
 export function saveRecipe(db: Database.Database, input: SaveRecipeInput): Recipe {
   const id = uniqueRecipeId(db, input.title, input.id);
+  const mealSlots = input.mealSlots ?? inferRecipeMealSlots(input);
 
   const save = db.transaction(() => {
     db.prepare(
       `INSERT INTO recipes (
         id, title, summary, source, servings, prep_minutes, cook_minutes,
-        rating, tags_json, favorite, image_url, provenance, updated_at
+        meal_slots_json, rating, tags_json, favorite, image_url, provenance, updated_at
       ) VALUES (
         @id, @title, @summary, @source, @servings, @prepMinutes, @cookMinutes,
-        @rating, @tagsJson, @favorite, @imageUrl, @provenance, CURRENT_TIMESTAMP
+        @mealSlotsJson, @rating, @tagsJson, @favorite, @imageUrl, @provenance, CURRENT_TIMESTAMP
       )
       ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
@@ -240,6 +251,7 @@ export function saveRecipe(db: Database.Database, input: SaveRecipeInput): Recip
         servings = excluded.servings,
         prep_minutes = excluded.prep_minutes,
         cook_minutes = excluded.cook_minutes,
+        meal_slots_json = excluded.meal_slots_json,
         rating = excluded.rating,
         tags_json = excluded.tags_json,
         favorite = excluded.favorite,
@@ -254,6 +266,7 @@ export function saveRecipe(db: Database.Database, input: SaveRecipeInput): Recip
       servings: input.servings,
       prepMinutes: input.prepMinutes,
       cookMinutes: input.cookMinutes,
+      mealSlotsJson: JSON.stringify(normalizeMealSlots(mealSlots)),
       rating: input.rating ?? 0,
       tagsJson: JSON.stringify(input.tags),
       favorite: input.favorite ? 1 : 0,

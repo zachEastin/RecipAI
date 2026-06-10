@@ -8,10 +8,10 @@ migrate(db);
 const insertRecipe = db.prepare(`
   INSERT OR REPLACE INTO recipes (
     id, title, summary, source, servings, prep_minutes, cook_minutes,
-    rating, tags_json, favorite, last_cooked_at, image_url, provenance, updated_at
+    meal_slots_json, rating, tags_json, favorite, last_cooked_at, image_url, provenance, updated_at
   ) VALUES (
     @id, @title, @summary, @source, @servings, @prepMinutes, @cookMinutes,
-    @rating, @tagsJson, @favorite, @lastCookedAt, @imageUrl, @provenance, CURRENT_TIMESTAMP
+    @mealSlotsJson, @rating, @tagsJson, @favorite, @lastCookedAt, @imageUrl, @provenance, CURRENT_TIMESTAMP
   )
 `);
 
@@ -43,6 +43,7 @@ const seed = db.transaction(() => {
     insertRecipe.run({
       ...recipe,
       tagsJson: JSON.stringify(recipe.tags),
+      mealSlotsJson: JSON.stringify(recipe.mealSlots),
       favorite: recipe.favorite ? 1 : 0
     });
 
