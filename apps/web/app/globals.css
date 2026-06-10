@@ -1845,7 +1845,6 @@ button {
   gap: 8px;
 }
 
-.plan-selection-actions .pick-recipe-button,
 .plan-selection-actions .plan-today-button,
 .plan-selection-actions .button {
   flex: 1 1 96px;

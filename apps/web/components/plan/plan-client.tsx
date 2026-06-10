@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { Recipe } from "@recipai/recipes";
 import type { ShoppingList, ShoppingListCoverage } from "@recipai/db";
@@ -60,10 +60,12 @@ type GenerateResponse = {
 };
 
 type DaySelectionDrag = {
-  isDragging: boolean;
+  anchorDate: string;
+  hasDragged: boolean;
   lastDate: string;
-  mode: "add" | "remove";
   pointerId: number;
+  startX: number;
+  startY: number;
 };
 
 type SaveResponse = {
@@ -90,6 +92,7 @@ const MEAL_SLOTS: Array<{ key: MealSlot; label: string }> = [
 ];
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_SELECTION_DRAG_THRESHOLD = 6;
 
 function entryKey(date: string, mealSlot: MealSlot): string {
   return `${date}::${mealSlot}`;
@@ -126,6 +129,12 @@ function dateRangeInclusive(startDate: string, endDate: string): string[] {
   }
 
   return dates;
+}
+
+function dateRangeBetween(startDate: string, endDate: string): string[] {
+  return startDate <= endDate
+    ? dateRangeInclusive(startDate, endDate)
+    : dateRangeInclusive(endDate, startDate);
 }
 
 function sortedDates(dates: Iterable<string>): string[] {
@@ -246,6 +255,7 @@ export function PlanClient({
   const [preferQuickWeekdays, setPreferQuickWeekdays] = useState(true);
   const [addVariety, setAddVariety] = useState(true);
   const daySelectionDrag = useRef<DaySelectionDrag | null>(null);
+  const suppressNextDayClick = useRef(false);
 
   const recipeById = useMemo(
     () => new Map(recipeList.map((recipe) => [recipe.id, recipe])),
@@ -575,18 +585,8 @@ export function PlanClient({
     setSelectedDates([today]);
   }
 
-  function applyDaySelection(date: string, mode: DaySelectionDrag["mode"]) {
-    setSelectedDates((current) => {
-      const next = new Set(current);
-
-      if (mode === "add") {
-        next.add(date);
-      } else {
-        next.delete(date);
-      }
-
-      return sortedDates(next);
-    });
+  function applyDaySelectionRange(startDate: string, endDate: string) {
+    setSelectedDates(dateRangeBetween(startDate, endDate));
   }
 
   function toggleDaySelection(date: string) {
@@ -603,31 +603,36 @@ export function PlanClient({
     });
   }
 
-  function dateFromPointer(event: PointerEvent): string | null {
+  function dateFromPointer(event: Pick<ReactPointerEvent, "clientX" | "clientY">): string | null {
     const element = document.elementFromPoint(event.clientX, event.clientY);
     return element?.closest<HTMLElement>("[data-plan-date]")?.dataset.planDate ?? null;
   }
 
-  function beginDaySelection(date: string, event: PointerEvent<HTMLButtonElement>) {
+  function beginDaySelection(date: string, event: ReactPointerEvent<HTMLButtonElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) {
       return;
     }
 
-    const mode = selectedDateSet.has(date) ? "remove" : "add";
     daySelectionDrag.current = {
-      isDragging: false,
+      anchorDate: date,
+      hasDragged: false,
       lastDate: date,
-      mode,
-      pointerId: event.pointerId
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-    applyDaySelection(date, mode);
   }
 
-  function continueDaySelection(event: PointerEvent<HTMLDivElement>) {
+  function continueDaySelection(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = daySelectionDrag.current;
 
     if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    if (!drag.hasDragged && distance < DAY_SELECTION_DRAG_THRESHOLD) {
       return;
     }
 
@@ -637,24 +642,25 @@ export function PlanClient({
     }
 
     drag.lastDate = date;
-    drag.isDragging = true;
-    applyDaySelection(date, drag.mode);
+    drag.hasDragged = true;
+    applyDaySelectionRange(drag.anchorDate, date);
   }
 
-  function endDaySelection(event: PointerEvent) {
+  function endDaySelection(event: ReactPointerEvent) {
     const drag = daySelectionDrag.current;
 
     if (!drag || drag.pointerId !== event.pointerId) {
       return;
     }
 
-    daySelectionDrag.current = null;
-  }
-
-  function openSelectedMeals() {
-    if (selectedDates.length === 1) {
-      setSelectedDate(selectedDates[0]!);
+    if (drag.hasDragged) {
+      suppressNextDayClick.current = true;
+      window.setTimeout(() => {
+        suppressNextDayClick.current = false;
+      }, 0);
     }
+
+    daySelectionDrag.current = null;
   }
 
   function openGenerateForSelectedDates() {
@@ -862,8 +868,15 @@ export function PlanClient({
                   .join(" ")}
                 data-plan-date={day.iso}
                 key={day.iso}
-                onClick={(event) => {
-                  if (event.detail === 0) {
+                onClick={() => {
+                  if (suppressNextDayClick.current) {
+                    suppressNextDayClick.current = false;
+                    return;
+                  }
+
+                  if (selectedDates.length === 0) {
+                    setSelectedDate(day.iso);
+                  } else {
                     toggleDaySelection(day.iso);
                   }
                 }}
@@ -887,20 +900,24 @@ export function PlanClient({
             );
           })}
         </div>
-        {selectedDates.length > 0 ? (
-          <div className="plan-selection-bar" role="region" aria-label="Selected planning days">
-            <div>
-              <strong>
-                {selectedDates.length} {selectedDates.length === 1 ? "day" : "days"} selected
-              </strong>
-              <span>{describeSelectedDates(selectedDates)}</span>
-            </div>
+        <div className="plan-selection-bar" role="region" aria-label="Selected planning days">
+          <div>
+            {selectedDates.length > 0 ? (
+              <>
+                <strong>
+                  {selectedDates.length} {selectedDates.length === 1 ? "day" : "days"} selected
+                </strong>
+                <span>{describeSelectedDates(selectedDates)}</span>
+              </>
+            ) : (
+              <>
+                <strong>Select planning days</strong>
+                <span>Click a day to view meals. Drag across days to select a range.</span>
+              </>
+            )}
+          </div>
+          {selectedDates.length > 0 ? (
             <div className="plan-selection-actions">
-              {selectedDates.length === 1 ? (
-                <button className="pick-recipe-button" onClick={openSelectedMeals} type="button">
-                  Meals
-                </button>
-              ) : null}
               <Button
                 disabled={isBusy || recipeList.length === 0 || selectedGenerationSlotCount === 0}
                 onClick={openGenerateForSelectedDates}
@@ -924,8 +941,8 @@ export function PlanClient({
                 Clear
               </button>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
         {status ? <p className="status-text">{status}</p> : null}
       </section>
 

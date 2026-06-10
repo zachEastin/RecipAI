@@ -16,6 +16,43 @@ test("mobile core pages render and navigation is stable", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Export JSON" })).toBeVisible();
 });
 
+test("plan day clicks open meals and dragging selects a continuous range", async ({ page }) => {
+  await page.goto("/plan", { waitUntil: "networkidle" });
+
+  const selectionPanel = page.getByRole("region", { name: "Selected planning days" });
+  await expect(selectionPanel).toContainText("Select planning days");
+  await expect(selectionPanel).toContainText("Click a day to view meals.");
+  await expect(selectionPanel.getByRole("button")).toHaveCount(0);
+
+  const currentMonthDays = page.locator(".meal-calendar-day:not(.meal-calendar-day-muted)");
+  await currentMonthDays.first().click();
+  await expect(page.getByRole("heading", { name: "Meals" })).toBeVisible();
+  await expect(selectionPanel.getByRole("button")).toHaveCount(0);
+  await page.getByRole("button", { name: "Close day plan" }).click();
+
+  const dragStart = currentMonthDays.nth(1);
+  const dragEnd = currentMonthDays.nth(4);
+  const startBox = await dragStart.boundingBox();
+  const endBox = await dragEnd.boundingBox();
+  expect(startBox).not.toBeNull();
+  expect(endBox).not.toBeNull();
+
+  await page.mouse.move(startBox!.x + startBox!.width / 2, startBox!.y + startBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(endBox!.x + endBox!.width / 2, endBox!.y + endBox!.height / 2, {
+    steps: 8
+  });
+  await page.mouse.up();
+
+  await expect(selectionPanel).toContainText("4 days selected");
+  await expect(page.locator(".meal-calendar-day-batch-selected")).toHaveCount(4);
+  await expect(selectionPanel.getByRole("button", { name: "Meals" })).toHaveCount(0);
+
+  await dragStart.click();
+  await expect(selectionPanel).toContainText("3 days selected");
+  await expect(page.locator(".meal-calendar-day-batch-selected")).toHaveCount(3);
+});
+
 test("add recipe wizard unifies AI URL and manual creation", async ({ page }) => {
   await page.goto("/library/add", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Add recipe" })).toBeVisible();
