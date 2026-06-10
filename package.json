@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "npm --workspace @recipai/web run dev",
     "build": "npm --workspace @recipai/web run build",
+    "start": "npm --workspace @recipai/web run start",
     "typecheck": "tsc --build",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
