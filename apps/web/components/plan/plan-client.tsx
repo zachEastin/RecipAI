@@ -15,7 +15,7 @@ import {
   X
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent } from "react";
 
 import type { Recipe } from "@recipai/recipes";
 
@@ -47,6 +47,13 @@ type GenerateResponse = {
   assignments?: PlanEntry[];
   recipes?: Recipe[];
   error?: string;
+};
+
+type DaySelectionDrag = {
+  isDragging: boolean;
+  lastDate: string;
+  mode: "add" | "remove";
+  pointerId: number;
 };
 
 type SaveResponse = {
@@ -97,6 +104,22 @@ function dateRangeInclusive(startDate: string, endDate: string): string[] {
   }
 
   return dates;
+}
+
+function sortedDates(dates: Iterable<string>): string[] {
+  return Array.from(dates).sort((a, b) => a.localeCompare(b));
+}
+
+function describeSelectedDates(dates: string[]): string {
+  if (dates.length === 0) {
+    return "";
+  }
+
+  if (dates.length === 1) {
+    return formatDate(dates[0]!);
+  }
+
+  return `${formatDate(dates[0]!)} - ${formatDate(dates.at(-1)!)}`;
 }
 
 function formatDate(value: string): string {
@@ -181,6 +204,7 @@ export function PlanClient({
   const [status, setStatus] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [pickerTarget, setPickerTarget] = useState<PlanTarget | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
@@ -196,6 +220,7 @@ export function PlanClient({
   const [avoidRecentMeals, setAvoidRecentMeals] = useState(true);
   const [preferQuickWeekdays, setPreferQuickWeekdays] = useState(true);
   const [addVariety, setAddVariety] = useState(true);
+  const daySelectionDrag = useRef<DaySelectionDrag | null>(null);
 
   const recipeById = useMemo(
     () => new Map(recipeList.map((recipe) => [recipe.id, recipe])),
@@ -239,11 +264,13 @@ export function PlanClient({
       };
     });
   }, [monthAnchor]);
+  const selectedDateSet = useMemo(() => new Set(selectedDates), [selectedDates]);
   const generationDates = dateRangeInclusive(generateRange.startDate, generateRange.endDate);
   const generationSlots = MEAL_SLOTS.filter((slot) => selectedSlots[slot.key]).map(
     (slot) => slot.key,
   );
   const generationSlotCount = generationDates.length * generationSlots.length;
+  const selectedGenerationSlotCount = selectedDates.length * generationSlots.length;
 
   function selectedEntry(mealSlot: MealSlot): PlanEntry | null {
     if (!selectedDate) {
@@ -260,12 +287,14 @@ export function PlanClient({
   async function generate({
     mealSlots,
     rerollTargets,
+    dates,
     range,
     closeModal = false
   }: {
     mealSlots: MealSlot[];
     rerollTargets?: PlanTarget[];
-    range: { startDate: string; endDate: string };
+    dates?: string[];
+    range?: { startDate: string; endDate: string };
     closeModal?: boolean;
   }) {
     if (mealSlots.length === 0) {
@@ -281,8 +310,9 @@ export function PlanClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          startDate: range.startDate,
-          endDate: range.endDate,
+          dates,
+          startDate: range?.startDate,
+          endDate: range?.endDate,
           mealSlots,
           existingAssignments: entries,
           rerollTargets,
@@ -460,7 +490,101 @@ export function PlanClient({
   function jumpToToday() {
     const date = dateFromIso(today);
     setMonthAnchor(new Date(date.getFullYear(), date.getMonth(), 1, 12));
-    setSelectedDate(today);
+    setSelectedDates([today]);
+  }
+
+  function applyDaySelection(date: string, mode: DaySelectionDrag["mode"]) {
+    setSelectedDates((current) => {
+      const next = new Set(current);
+
+      if (mode === "add") {
+        next.add(date);
+      } else {
+        next.delete(date);
+      }
+
+      return sortedDates(next);
+    });
+  }
+
+  function toggleDaySelection(date: string) {
+    setSelectedDates((current) => {
+      const next = new Set(current);
+
+      if (next.has(date)) {
+        next.delete(date);
+      } else {
+        next.add(date);
+      }
+
+      return sortedDates(next);
+    });
+  }
+
+  function dateFromPointer(event: PointerEvent): string | null {
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    return element?.closest<HTMLElement>("[data-plan-date]")?.dataset.planDate ?? null;
+  }
+
+  function beginDaySelection(date: string, event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const mode = selectedDateSet.has(date) ? "remove" : "add";
+    daySelectionDrag.current = {
+      isDragging: false,
+      lastDate: date,
+      mode,
+      pointerId: event.pointerId
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    applyDaySelection(date, mode);
+  }
+
+  function continueDaySelection(event: PointerEvent<HTMLDivElement>) {
+    const drag = daySelectionDrag.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const date = dateFromPointer(event);
+    if (!date || date === drag.lastDate) {
+      return;
+    }
+
+    drag.lastDate = date;
+    drag.isDragging = true;
+    applyDaySelection(date, drag.mode);
+  }
+
+  function endDaySelection(event: PointerEvent) {
+    const drag = daySelectionDrag.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    daySelectionDrag.current = null;
+  }
+
+  function openSelectedMeals() {
+    if (selectedDates.length === 1) {
+      setSelectedDate(selectedDates[0]!);
+    }
+  }
+
+  function openGenerateForSelectedDates() {
+    if (selectedDates.length === 0) {
+      return;
+    }
+
+    setGenerateRange({
+      startDate: selectedDates[0]!,
+      endDate: selectedDates.at(-1)!
+    });
+    setIsGenerateOpen(true);
   }
 
   return (
@@ -516,28 +640,42 @@ export function PlanClient({
             <span key={day}>{day}</span>
           ))}
         </div>
-        <div className="meal-calendar-grid">
+        <div
+          className="meal-calendar-grid"
+          onPointerCancel={endDaySelection}
+          onPointerMove={continueDaySelection}
+          onPointerUp={endDaySelection}
+        >
           {calendarDays.map((day) => {
             const dayEntries = MEAL_SLOTS.map((slot) => ({
               slot: slot.key,
               entry: entryByKey.get(entryKey(day.iso, slot.key)) ?? null
             }));
-            const isSelected = selectedDate === day.iso;
+            const isSelected = selectedDateSet.has(day.iso);
+            const isDayPlanOpen = selectedDate === day.iso;
             const hasMeal = dayEntries.some((item) => item.entry);
 
             return (
               <button
                 aria-label={`${formatDate(day.iso)}${hasMeal ? ", meals planned" : ", no meals planned"}`}
+                aria-pressed={isSelected}
                 className={[
                   "meal-calendar-day",
                   day.isCurrentMonth ? "" : "meal-calendar-day-muted",
                   day.iso === today ? "meal-calendar-day-today" : "",
-                  isSelected ? "meal-calendar-day-selected" : ""
+                  isSelected ? "meal-calendar-day-batch-selected" : "",
+                  isDayPlanOpen ? "meal-calendar-day-selected" : ""
                 ]
                   .filter(Boolean)
                   .join(" ")}
+                data-plan-date={day.iso}
                 key={day.iso}
-                onClick={() => setSelectedDate(day.iso)}
+                onClick={(event) => {
+                  if (event.detail === 0) {
+                    toggleDaySelection(day.iso);
+                  }
+                }}
+                onPointerDown={(event) => beginDaySelection(day.iso, event)}
                 type="button"
               >
                 <span>{day.date.getDate()}</span>
@@ -557,6 +695,37 @@ export function PlanClient({
             );
           })}
         </div>
+        {selectedDates.length > 0 ? (
+          <div className="plan-selection-bar" role="region" aria-label="Selected planning days">
+            <div>
+              <strong>
+                {selectedDates.length} {selectedDates.length === 1 ? "day" : "days"} selected
+              </strong>
+              <span>{describeSelectedDates(selectedDates)}</span>
+            </div>
+            <div className="plan-selection-actions">
+              {selectedDates.length === 1 ? (
+                <button className="pick-recipe-button" onClick={openSelectedMeals} type="button">
+                  Meals
+                </button>
+              ) : null}
+              <Button
+                disabled={isBusy || recipeList.length === 0 || selectedGenerationSlotCount === 0}
+                onClick={openGenerateForSelectedDates}
+              >
+                <Sparkles aria-hidden="true" size={17} />
+                Generate
+              </Button>
+              <button
+                className="plan-today-button"
+                onClick={() => setSelectedDates([])}
+                type="button"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
         {status ? <p className="status-text">{status}</p> : null}
       </section>
 
@@ -632,7 +801,7 @@ export function PlanClient({
                           void generate({
                             mealSlots: [slot.key],
                             rerollTargets: [{ date: selectedDate, mealSlot: slot.key }],
-                            range: { startDate: selectedDate, endDate: selectedDate }
+                            dates: [selectedDate]
                           })
                         }
                         type="button"
@@ -671,7 +840,11 @@ export function PlanClient({
       ) : null}
 
       {isGenerateOpen ? (
-        <div className="recipe-picker-backdrop" role="presentation" onClick={() => setIsGenerateOpen(false)}>
+        <div
+          className="recipe-picker-backdrop generate-plan-backdrop"
+          role="presentation"
+          onClick={() => setIsGenerateOpen(false)}
+        >
           <section
             aria-labelledby="generate-plan-title"
             className="generate-plan-sheet"

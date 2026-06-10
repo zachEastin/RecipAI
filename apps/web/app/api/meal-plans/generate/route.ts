@@ -24,8 +24,9 @@ const targetSchema = z.object({
 });
 
 const schema = z.object({
-  startDate: z.string(),
-  endDate: z.string(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  dates: z.array(z.string()).optional(),
   mealSlots: z.array(z.enum(["breakfast", "lunch", "dinner"])).optional(),
   existingAssignments: z.array(assignmentSchema).optional(),
   rerollTargets: z.array(targetSchema).optional(),
@@ -44,7 +45,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Choose a valid date range." }, { status: 400 });
   }
 
-  const dates = dateRangeInclusive(parsed.data.startDate, parsed.data.endDate);
+  const dates = parsed.data.dates?.length
+    ? Array.from(new Set(parsed.data.dates)).sort()
+    : parsed.data.startDate && parsed.data.endDate
+      ? dateRangeInclusive(parsed.data.startDate, parsed.data.endDate)
+      : [];
+
   if (dates.length === 0) {
     return NextResponse.json({ error: "Choose a valid date range." }, { status: 400 });
   }
