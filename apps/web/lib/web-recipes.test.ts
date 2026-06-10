@@ -41,6 +41,17 @@ describe("web recipe adapter", () => {
     ]);
   });
 
+  it("deduplicates normalized tags from category, area, and provider tags", () => {
+    const result = mealToSearchResult({
+      ...teriyakiMeal,
+      strArea: "Breakfast",
+      strCategory: "Breakfast",
+      strTags: "Breakfast,Egyptian"
+    });
+
+    expect(result.tags).toEqual(["breakfast", "egyptian"]);
+  });
+
   it("normalizes TheMealDB meals into saveable drafts", () => {
     const draft = mealToDraft(teriyakiMeal);
 

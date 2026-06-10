@@ -145,12 +145,14 @@ function instructionLines(value: string | null | undefined): string[] {
 }
 
 function mealTags(meal: MealDbMeal): string[] {
-  return [
+  const tags = [
     "web-search",
     clean(meal.strCategory).toLowerCase(),
     clean(meal.strArea).toLowerCase(),
     ...tagList(meal.strTags)
   ].filter(Boolean);
+
+  return [...new Set(tags)];
 }
 
 export function mealToSearchResult(meal: MealDbMeal): WebRecipeSearchResult {

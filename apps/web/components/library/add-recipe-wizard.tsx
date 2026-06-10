@@ -682,8 +682,8 @@ export function AddRecipeWizard({
                     {webDraft.tags
                       .filter((tag) => tag !== "web-search")
                       .slice(0, 3)
-                      .map((tag) => (
-                        <span key={tag}>{tag}</span>
+                      .map((tag, index) => (
+                        <span key={`${tag}-${index}`}>{tag}</span>
                       ))}
                   </div>
                 </div>
@@ -866,8 +866,8 @@ export function AddRecipeWizard({
                               "Web recipe"}
                           </p>
                           <div className="web-tag-row">
-                            {result.tags.slice(0, 3).map((tag) => (
-                              <span key={tag}>{tag}</span>
+                            {result.tags.slice(0, 3).map((tag, index) => (
+                              <span key={`${tag}-${index}`}>{tag}</span>
                             ))}
                           </div>
                         </div>
