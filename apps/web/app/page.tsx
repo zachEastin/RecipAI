@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { AskScreen } from "@/components/screens";
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  return (
-    <AppShell active="ask">
-      <AskScreen />
-    </AppShell>
-  );
+  redirect("/library");
 }

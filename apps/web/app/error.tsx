@@ -10,7 +10,7 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <AppShell active="ask">
+    <AppShell active="library">
       <div className="error-panel">
         <strong>Something went wrong</strong>
         <p>RecipAI hit a local app error. Your SQLite data is still local on this machine.</p>

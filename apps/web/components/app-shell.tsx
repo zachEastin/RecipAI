@@ -9,7 +9,7 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-type NavKey = "ask" | "library" | "plan" | "shop" | "cook" | "settings";
+type NavKey = "library" | "plan" | "shop" | "cook" | "settings";
 
 const navItems: Array<{
   key: NavKey;
