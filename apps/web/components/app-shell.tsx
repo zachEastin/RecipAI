@@ -2,8 +2,8 @@ import {
   BookOpen,
   CalendarDays,
   ChefHat,
-  ClipboardList,
   Settings,
+  ShoppingBasket,
   type LucideIcon
 } from "lucide-react";
 import Link from "next/link";
@@ -19,7 +19,7 @@ const navItems: Array<{
 }> = [
   { key: "library", label: "Library", href: "/library", icon: BookOpen },
   { key: "plan", label: "Plan", href: "/plan", icon: CalendarDays },
-  { key: "shop", label: "Shop", href: "/shop", icon: ClipboardList },
+  { key: "shop", label: "Shop", href: "/shop", icon: ShoppingBasket },
   { key: "cook", label: "Cook", href: "/cook", icon: ChefHat },
   { key: "settings", label: "Settings", href: "/settings", icon: Settings }
 ];

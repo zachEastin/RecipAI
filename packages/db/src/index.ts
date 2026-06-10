@@ -24,17 +24,23 @@ export {
 export type { MealPlanEntry, MealSlot, SaveMealPlanEntryInput } from "./meal-plans";
 export {
   addShoppingListItem,
+  addMissingShoppingListItemsFromMealPlanDates,
+  buildShoppingListItemsFromMealPlanDates,
   clearCompletedShoppingListItems,
   deleteShoppingListItem,
   generateShoppingListFromMealPlan,
+  generateShoppingListFromMealPlanDates,
+  getShoppingListCoverage,
   getLatestShoppingList,
   getShoppingListById,
   listShoppingLists,
+  replaceLatestShoppingListFromMealPlanDates,
   saveShoppingList,
   updateShoppingListItem
 } from "./shopping-lists";
 export type {
   SaveShoppingListInput,
+  ShoppingListCoverage,
   ShoppingList,
   ShoppingListItem,
   ShoppingListItemUpdate

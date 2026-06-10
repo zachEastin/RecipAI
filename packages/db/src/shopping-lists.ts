@@ -2,6 +2,8 @@ import type Database from "better-sqlite3";
 
 import {
   aggregateIngredients,
+  normalizeIngredientName,
+  normalizeShoppingUnit,
   type AggregatedShoppingListItem
 } from "@recipai/shopping-list";
 
@@ -34,6 +36,12 @@ export type SaveShoppingListInput = {
   items: AggregatedShoppingListItem[];
 };
 
+export type ShoppingListCoverage = {
+  totalItems: number;
+  representedItems: number;
+  missingItems: AggregatedShoppingListItem[];
+};
+
 export type ShoppingListItemUpdate = Partial<
   Pick<ShoppingListItem, "checked" | "groceryCategory" | "name" | "quantity" | "unit">
 >;
@@ -59,6 +67,22 @@ type ShoppingListItemRow = {
 
 function uniqueId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function itemCoverageKey(item: Pick<AggregatedShoppingListItem, "name" | "unit">): string {
+  return `${normalizeIngredientName(item.name)}::${normalizeShoppingUnit(item.unit) ?? "unitless"}`;
+}
+
+function sortedUniqueDates(dates: string[]): string[] {
+  return Array.from(new Set(dates)).sort((a, b) => a.localeCompare(b));
+}
+
+function selectedDatesTitle(dates: string[]): string {
+  if (dates.length === 1) {
+    return `Shopping list: ${dates[0]}`;
+  }
+
+  return `Shopping list: ${dates[0]} to ${dates.at(-1)}`;
 }
 
 function mapShoppingListItem(row: ShoppingListItemRow): ShoppingListItem {
@@ -170,12 +194,63 @@ export function saveShoppingList(
   return list;
 }
 
-export function generateShoppingListFromMealPlan(
+function replaceShoppingList(
   db: Database.Database,
-  startDate: string,
-  endDate: string,
+  id: string,
+  input: SaveShoppingListInput,
 ): ShoppingList {
-  const entries = listMealPlanEntries(db, startDate, endDate).filter((entry) => entry.recipe);
+  const replace = db.transaction(() => {
+    db.prepare(
+      `UPDATE shopping_lists
+       SET title = ?, starts_on = ?, ends_on = ?, created_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+    ).run(input.title, input.startsOn, input.endsOn, id);
+
+    db.prepare("DELETE FROM shopping_list_items WHERE shopping_list_id = ?").run(id);
+
+    const insertItem = db.prepare(
+      `INSERT INTO shopping_list_items (
+        id, shopping_list_id, quantity, unit, name, grocery_category, checked, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
+    );
+
+    input.items.forEach((item, index) => {
+      insertItem.run(
+        `${id}_item_${Date.now()}_${index + 1}`,
+        id,
+        item.quantity,
+        item.unit,
+        item.name,
+        item.groceryCategory || "Other",
+        index + 1,
+      );
+    });
+  });
+
+  replace();
+
+  const list = getShoppingListById(db, id);
+  if (!list) {
+    throw new Error("Shopping list replace failed.");
+  }
+
+  return list;
+}
+
+export function buildShoppingListItemsFromMealPlanDates(
+  db: Database.Database,
+  dates: string[],
+): AggregatedShoppingListItem[] {
+  const selectedDates = sortedUniqueDates(dates);
+  if (selectedDates.length === 0) {
+    return [];
+  }
+
+  const entries = listMealPlanEntries(
+    db,
+    selectedDates[0]!,
+    selectedDates.at(-1)!,
+  ).filter((entry) => selectedDates.includes(entry.date) && entry.recipe);
   const ingredients = entries.flatMap((entry) =>
     entry.recipe!.ingredients.map((ingredient) => ({
       quantity: ingredient.quantity,
@@ -184,7 +259,63 @@ export function generateShoppingListFromMealPlan(
       groceryCategory: ingredient.groceryCategory
     })),
   );
-  const items = aggregateIngredients(ingredients);
+
+  return aggregateIngredients(ingredients);
+}
+
+export function getShoppingListCoverage(
+  list: ShoppingList,
+  generatedItems: AggregatedShoppingListItem[],
+): ShoppingListCoverage {
+  const activeQuantities = new Map<string, number | null>();
+
+  for (const item of list.items) {
+    const key = itemCoverageKey(item);
+    const existing = activeQuantities.get(key);
+
+    if (item.quantity === null) {
+      activeQuantities.set(key, null);
+      continue;
+    }
+
+    if (existing === null) {
+      continue;
+    }
+
+    activeQuantities.set(key, (existing ?? 0) + item.quantity);
+  }
+
+  const missingItems = generatedItems.filter((item) => {
+    const representedQuantity = activeQuantities.get(itemCoverageKey(item));
+
+    if (representedQuantity === undefined) {
+      return true;
+    }
+
+    if (item.quantity === null || representedQuantity === null) {
+      return false;
+    }
+
+    return representedQuantity < item.quantity;
+  });
+
+  return {
+    totalItems: generatedItems.length,
+    representedItems: generatedItems.length - missingItems.length,
+    missingItems
+  };
+}
+
+export function generateShoppingListFromMealPlan(
+  db: Database.Database,
+  startDate: string,
+  endDate: string,
+): ShoppingList {
+  const dates = [];
+  for (let cursor = new Date(`${startDate}T12:00:00`); cursor <= new Date(`${endDate}T12:00:00`); cursor.setDate(cursor.getDate() + 1)) {
+    dates.push(cursor.toISOString().slice(0, 10));
+  }
+  const items = buildShoppingListItemsFromMealPlanDates(db, dates);
 
   return saveShoppingList(db, {
     title: `Shopping list: ${startDate} to ${endDate}`,
@@ -192,6 +323,81 @@ export function generateShoppingListFromMealPlan(
     endsOn: endDate,
     items
   });
+}
+
+export function generateShoppingListFromMealPlanDates(
+  db: Database.Database,
+  dates: string[],
+): ShoppingList {
+  const selectedDates = sortedUniqueDates(dates);
+  const items = buildShoppingListItemsFromMealPlanDates(db, selectedDates);
+
+  return saveShoppingList(db, {
+    title: selectedDatesTitle(selectedDates),
+    startsOn: selectedDates[0]!,
+    endsOn: selectedDates.at(-1)!,
+    items
+  });
+}
+
+export function replaceLatestShoppingListFromMealPlanDates(
+  db: Database.Database,
+  dates: string[],
+): ShoppingList {
+  const latestList = getLatestShoppingList(db);
+  if (!latestList) {
+    return generateShoppingListFromMealPlanDates(db, dates);
+  }
+
+  const selectedDates = sortedUniqueDates(dates);
+  const items = buildShoppingListItemsFromMealPlanDates(db, selectedDates);
+
+  return replaceShoppingList(db, latestList.id, {
+    title: selectedDatesTitle(selectedDates),
+    startsOn: selectedDates[0]!,
+    endsOn: selectedDates.at(-1)!,
+    items
+  });
+}
+
+export function addMissingShoppingListItemsFromMealPlanDates(
+  db: Database.Database,
+  dates: string[],
+): { list: ShoppingList; coverage: ShoppingListCoverage } {
+  const latestList = getLatestShoppingList(db);
+  if (!latestList) {
+    const list = generateShoppingListFromMealPlanDates(db, dates);
+    return {
+      list,
+      coverage: {
+        totalItems: list.items.length,
+        representedItems: 0,
+        missingItems: list.items.map((item) => ({
+          quantity: item.quantity,
+          unit: item.unit,
+          name: item.name,
+          groceryCategory: item.groceryCategory
+        }))
+      }
+    };
+  }
+
+  const generatedItems = buildShoppingListItemsFromMealPlanDates(db, dates);
+  const coverage = getShoppingListCoverage(latestList, generatedItems);
+
+  const insert = db.transaction(() => {
+    for (const item of coverage.missingItems) {
+      addShoppingListItem(db, latestList.id, item);
+    }
+  });
+  insert();
+
+  const list = getShoppingListById(db, latestList.id);
+  if (!list) {
+    throw new Error("Shopping list update failed.");
+  }
+
+  return { list, coverage };
 }
 
 export function updateShoppingListItem(

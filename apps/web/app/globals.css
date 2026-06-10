@@ -1931,13 +1931,15 @@ button {
 }
 
 .day-plan-backdrop,
-.generate-plan-backdrop {
+.generate-plan-backdrop,
+.shopping-list-backdrop {
   align-items: center;
 }
 
 .recipe-picker-sheet,
 .day-plan-sheet,
-.generate-plan-sheet {
+.generate-plan-sheet,
+.shopping-list-sheet {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1952,7 +1954,8 @@ button {
 }
 
 .day-plan-sheet,
-.generate-plan-sheet {
+.generate-plan-sheet,
+.shopping-list-sheet {
   max-height: min(86dvh, 720px);
   max-width: 508px;
   overflow-y: auto;
@@ -2125,6 +2128,20 @@ button {
   display: flex;
   font-weight: 900;
   gap: 9px;
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.shopping-list-coverage {
+  align-items: center;
+  background: var(--primary-soft);
+  border: 1px solid #cbe6d5;
+  border-radius: 8px;
+  color: var(--primary);
+  display: flex;
+  font-weight: 900;
+  gap: 9px;
+  line-height: 1.35;
   min-height: 42px;
   padding: 10px 12px;
 }

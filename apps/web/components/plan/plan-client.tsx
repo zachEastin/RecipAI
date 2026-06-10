@@ -10,6 +10,7 @@ import {
   LockOpen,
   Search,
   Sparkles,
+  ShoppingBasket,
   Trash2,
   Utensils,
   X
@@ -18,6 +19,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState, type PointerEvent } from "react";
 
 import type { Recipe } from "@recipai/recipes";
+import type { ShoppingList, ShoppingListCoverage } from "@recipai/db";
 
 import { Button } from "../ui";
 
@@ -59,6 +61,18 @@ type DaySelectionDrag = {
 type SaveResponse = {
   entries?: SavedPlanEntry[];
   error?: string;
+};
+
+type ShoppingListResponse = {
+  list?: ShoppingList;
+  activeList?: ShoppingList | null;
+  coverage?: ShoppingListCoverage;
+  error?: string;
+};
+
+type ShoppingListPrompt = {
+  activeList: ShoppingList;
+  coverage: ShoppingListCoverage;
 };
 
 const MEAL_SLOTS: Array<{ key: MealSlot; label: string }> = [
@@ -205,6 +219,7 @@ export function PlanClient({
   const [isBusy, setIsBusy] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [shoppingListPrompt, setShoppingListPrompt] = useState<ShoppingListPrompt | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PlanTarget | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
@@ -587,6 +602,86 @@ export function PlanClient({
     setIsGenerateOpen(true);
   }
 
+  async function postSelectedShoppingList(mode: "preview" | "create" | "override" | "add-missing") {
+    const response = await fetch("/api/shopping-lists/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dates: selectedDates, mode })
+    });
+    const payload = (await response.json()) as ShoppingListResponse;
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Could not create a shopping list.");
+    }
+
+    return payload;
+  }
+
+  async function createShoppingListFromSelectedDays() {
+    if (selectedDates.length === 0) {
+      return;
+    }
+
+    setIsBusy(true);
+    setStatus(null);
+
+    try {
+      const preview = await postSelectedShoppingList("preview");
+
+      if (preview.activeList && preview.coverage) {
+        setShoppingListPrompt({
+          activeList: preview.activeList,
+          coverage: preview.coverage
+        });
+        return;
+      }
+
+      const created = await postSelectedShoppingList("create");
+      if (!created.list) {
+        throw new Error("Could not create a shopping list.");
+      }
+
+      setStatus(
+        created.list.items.length > 0
+          ? "Created a shopping list from the selected days."
+          : "Created an empty shopping list. Add planned meals, then create it again.",
+      );
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "Could not create a shopping list.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function resolveShoppingListPrompt(mode: "override" | "add-missing") {
+    setIsBusy(true);
+    setStatus(null);
+
+    try {
+      const payload = await postSelectedShoppingList(mode);
+
+      if (!payload.list) {
+        throw new Error("Could not update the shopping list.");
+      }
+
+      setShoppingListPrompt(null);
+      if (mode === "override") {
+        setStatus("Replaced the active shopping list with selected-day ingredients.");
+      } else {
+        const addedCount = payload.coverage?.missingItems.length ?? 0;
+        setStatus(
+          addedCount > 0
+            ? `Added ${addedCount} missing ${addedCount === 1 ? "item" : "items"} to the active shopping list.`
+            : "Selected-day ingredients are already on the active shopping list.",
+        );
+      }
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "Could not update the shopping list.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   return (
     <div className="screen-stack plan-screen">
       <section className="plan-calendar-panel">
@@ -716,6 +811,14 @@ export function PlanClient({
                 <Sparkles aria-hidden="true" size={17} />
                 Generate
               </Button>
+              <Button
+                disabled={isBusy}
+                onClick={() => void createShoppingListFromSelectedDays()}
+                variant="secondary"
+              >
+                <ShoppingBasket aria-hidden="true" size={17} />
+                Create list
+              </Button>
               <button
                 className="plan-today-button"
                 onClick={() => setSelectedDates([])}
@@ -728,6 +831,79 @@ export function PlanClient({
         ) : null}
         {status ? <p className="status-text">{status}</p> : null}
       </section>
+
+      {shoppingListPrompt ? (
+        <div
+          className="recipe-picker-backdrop shopping-list-backdrop"
+          role="presentation"
+          onClick={() => setShoppingListPrompt(null)}
+        >
+          <section
+            aria-labelledby="shopping-list-conflict-title"
+            aria-modal="true"
+            className="shopping-list-sheet"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="recipe-picker-header">
+              <div>
+                <p className="plan-date">
+                  {shoppingListPrompt.coverage.representedItems} of{" "}
+                  {shoppingListPrompt.coverage.totalItems} represented
+                </p>
+                <h2 id="shopping-list-conflict-title">Update shopping list?</h2>
+                <p>A shopping list is already active.</p>
+              </div>
+              <button
+                aria-label="Close shopping list options"
+                className="icon-toggle"
+                onClick={() => setShoppingListPrompt(null)}
+                type="button"
+              >
+                <X aria-hidden="true" size={18} />
+              </button>
+            </div>
+
+            <div className="shopping-list-coverage">
+              <ShoppingBasket aria-hidden="true" size={18} />
+              <span>
+                {shoppingListPrompt.coverage.totalItems === 0
+                  ? "No selected-day ingredients to add."
+                  : shoppingListPrompt.coverage.missingItems.length === 0
+                  ? "Selected ingredients are already covered."
+                  : `${shoppingListPrompt.coverage.missingItems.length} missing ${
+                      shoppingListPrompt.coverage.missingItems.length === 1 ? "item" : "items"
+                    } can be added.`}
+              </span>
+            </div>
+
+            <div className="plan-action-grid">
+              <Button
+                disabled={isBusy}
+                onClick={() => void resolveShoppingListPrompt("override")}
+                type="button"
+              >
+                Override list
+              </Button>
+              <Button
+                disabled={isBusy || shoppingListPrompt.coverage.missingItems.length === 0}
+                onClick={() => void resolveShoppingListPrompt("add-missing")}
+                type="button"
+                variant="secondary"
+              >
+                Add missing items
+              </Button>
+            </div>
+            <button
+              className="plan-today-button"
+              onClick={() => setShoppingListPrompt(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+          </section>
+        </div>
+      ) : null}
 
       {selectedDate ? (
         <div

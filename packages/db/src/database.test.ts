@@ -16,10 +16,16 @@ import {
   updateRecipeFavorite
 } from "./recipes";
 import {
+  addMissingShoppingListItemsFromMealPlanDates,
+  buildShoppingListItemsFromMealPlanDates,
   addShoppingListItem,
   clearCompletedShoppingListItems,
   deleteShoppingListItem,
   generateShoppingListFromMealPlan,
+  generateShoppingListFromMealPlanDates,
+  getLatestShoppingList,
+  getShoppingListCoverage,
+  replaceLatestShoppingListFromMealPlanDates,
   updateShoppingListItem
 } from "./shopping-lists";
 
@@ -240,6 +246,135 @@ describe("database migrations", () => {
     expect(manual?.groceryCategory).toBe("Household");
     expect(deleteShoppingListItem(db, manual!.id)).toBe(true);
     expect(clearCompletedShoppingListItems(db, list.id)).toBe(1);
+    db.close();
+  });
+
+  it("generates shopping lists from explicit selected dates and all meal slots", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+    const breakfast = saveRecipe(db, {
+      title: "Toast",
+      summary: "Morning toast.",
+      servings: 1,
+      prepMinutes: 2,
+      cookMinutes: 3,
+      tags: ["breakfast"],
+      provenance: "manual",
+      ingredients: [{ quantity: 2, unit: null, name: "bread", note: null, groceryCategory: "Bakery" }],
+      steps: [{ body: "Toast bread.", timerMinutes: 3 }]
+    });
+    const dinner = saveRecipe(db, {
+      title: "Pasta",
+      summary: "Dinner pasta.",
+      servings: 2,
+      prepMinutes: 5,
+      cookMinutes: 12,
+      tags: ["dinner"],
+      provenance: "manual",
+      ingredients: [{ quantity: 8, unit: "oz", name: "pasta", note: null, groceryCategory: "Grains" }],
+      steps: [{ body: "Boil pasta.", timerMinutes: 12 }]
+    });
+    const skipped = saveRecipe(db, {
+      title: "Salad",
+      summary: "Middle day salad.",
+      servings: 2,
+      prepMinutes: 5,
+      cookMinutes: 0,
+      tags: ["lunch"],
+      provenance: "manual",
+      ingredients: [{ quantity: 1, unit: "head", name: "lettuce", note: null, groceryCategory: "Produce" }],
+      steps: [{ body: "Mix.", timerMinutes: null }]
+    });
+
+    saveMealPlanEntries(db, [
+      { date: "2026-06-08", mealSlot: "breakfast", recipeId: breakfast.id, locked: false },
+      { date: "2026-06-10", mealSlot: "dinner", recipeId: dinner.id, locked: false },
+      { date: "2026-06-09", mealSlot: "lunch", recipeId: skipped.id, locked: false }
+    ]);
+
+    const items = buildShoppingListItemsFromMealPlanDates(db, ["2026-06-10", "2026-06-08"]);
+    expect(items.map((item) => item.name).sort()).toEqual(["bread", "pasta"]);
+
+    const list = generateShoppingListFromMealPlanDates(db, ["2026-06-10", "2026-06-08"]);
+    expect(list.startsOn).toBe("2026-06-08");
+    expect(list.endsOn).toBe("2026-06-10");
+    expect(list.items.map((item) => item.name).sort()).toEqual(["bread", "pasta"]);
+    db.close();
+  });
+
+  it("overrides the active shopping list in place", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+    const recipe = saveRecipe(db, {
+      title: "Rice",
+      summary: "Rice dinner.",
+      servings: 2,
+      prepMinutes: 2,
+      cookMinutes: 20,
+      tags: ["dinner"],
+      provenance: "manual",
+      ingredients: [{ quantity: 1, unit: "cup", name: "rice", note: null, groceryCategory: "Grains" }],
+      steps: [{ body: "Cook.", timerMinutes: 20 }]
+    });
+
+    saveMealPlanEntries(db, [
+      { date: "2026-06-08", mealSlot: "dinner", recipeId: recipe.id, locked: false }
+    ]);
+
+    const original = generateShoppingListFromMealPlanDates(db, ["2026-06-08"]);
+    addShoppingListItem(db, original.id, {
+      quantity: 1,
+      unit: null,
+      name: "dish soap",
+      groceryCategory: "Household"
+    });
+
+    const replaced = replaceLatestShoppingListFromMealPlanDates(db, ["2026-06-08"]);
+    expect(replaced.id).toBe(original.id);
+    expect(replaced.items.map((item) => item.name)).toEqual(["rice"]);
+    db.close();
+  });
+
+  it("detects represented ingredients and adds only missing items", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+    const recipe = saveRecipe(db, {
+      title: "Tomato Rice",
+      summary: "Simple.",
+      servings: 2,
+      prepMinutes: 5,
+      cookMinutes: 20,
+      tags: ["dinner"],
+      provenance: "manual",
+      ingredients: [
+        { quantity: 1, unit: "cup", name: "rice", note: null, groceryCategory: "Grains" },
+        { quantity: 2, unit: "cups", name: "tomatoes", note: null, groceryCategory: "Produce" }
+      ],
+      steps: [{ body: "Cook.", timerMinutes: 20 }]
+    });
+
+    saveMealPlanEntries(db, [
+      { date: "2026-06-08", mealSlot: "dinner", recipeId: recipe.id, locked: false }
+    ]);
+
+    const active = generateShoppingListFromMealPlanDates(db, ["2026-06-08"]);
+    const generatedItems = buildShoppingListItemsFromMealPlanDates(db, ["2026-06-08"]);
+    expect(getShoppingListCoverage(active, generatedItems).missingItems).toHaveLength(0);
+
+    const result = addMissingShoppingListItemsFromMealPlanDates(db, ["2026-06-08"]);
+    expect(result.coverage.missingItems).toHaveLength(0);
+    expect(result.list.items).toHaveLength(active.items.length);
+
+    updateShoppingListItem(db, active.items.find((item) => item.name === "tomatoes")!.id, {
+      quantity: 1
+    });
+    const latest = getLatestShoppingList(db)!;
+    const coverage = getShoppingListCoverage(latest, generatedItems);
+    expect(coverage.missingItems.map((item) => item.name)).toEqual(["tomatoes"]);
+
+    const added = addMissingShoppingListItemsFromMealPlanDates(db, ["2026-06-08"]);
+    expect(added.coverage.missingItems.map((item) => item.name)).toEqual(["tomatoes"]);
+    expect(added.list.items.filter((item) => item.name === "tomatoes")).toHaveLength(2);
     db.close();
   });
 });
