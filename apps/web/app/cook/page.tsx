@@ -1,8 +1,19 @@
 import { AppShell } from "@/components/app-shell";
-import { CookClient, AI_DRAFT_STORAGE_KEY } from "@/components/cook/cook-client";
+import {
+  CookClient,
+  AI_DRAFT_STORAGE_KEY,
+  WEB_DRAFT_STORAGE_KEY
+} from "@/components/cook/cook-client";
 import { CookScreen } from "@/components/screens";
-import { getRecipeById } from "@recipai/db";
+import { getRecipeById, listMealPlanEntries, listRecipes } from "@recipai/db";
 import { openAppDatabase } from "@/lib/server-db";
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export default async function CookPage({
   searchParams
@@ -12,12 +23,20 @@ export default async function CookPage({
   const { draft, recipeId } = await searchParams;
 
   if (!recipeId) {
+    const today = toIsoDate(new Date());
+    const db = openAppDatabase();
+    const todaysMeals = listMealPlanEntries(db, today, today);
+    const recipes = listRecipes(db);
+    db.close();
+
     return (
       <AppShell active="cook">
         {draft === "ai" ? (
           <CookClient draftStorageKey={AI_DRAFT_STORAGE_KEY} />
+        ) : draft === "web" ? (
+          <CookClient draftStorageKey={WEB_DRAFT_STORAGE_KEY} />
         ) : (
-          <CookScreen />
+          <CookClient recipes={recipes} today={today} todaysMeals={todaysMeals} />
         )}
       </AppShell>
     );

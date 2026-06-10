@@ -6,20 +6,85 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
+  Dice5,
+  Filter,
+  Globe2,
+  Heart,
   Minus,
   Plus,
+  Search,
+  Shuffle,
+  SlidersHorizontal,
+  Star,
   TimerReset,
   Utensils,
-  Volume2
+  Volume2,
+  X
 } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 
-import type { Recipe } from "@recipai/recipes";
+import type { MealSlot, Recipe } from "@recipai/recipes";
+import type { MealPlanEntry } from "@recipai/db";
 
-import { Button, EmptyState } from "../ui";
+import { Button } from "../ui";
+import { filterRecipes } from "../library/recipe-filters";
 
 const AI_DRAFT_STORAGE_KEY = "recipai-ai-cook-draft";
+const WEB_DRAFT_STORAGE_KEY = "recipai-web-cook-draft";
+
+const MEAL_SLOTS: Array<{ key: MealSlot; label: string }> = [
+  { key: "breakfast", label: "Breakfast" },
+  { key: "lunch", label: "Lunch" },
+  { key: "dinner", label: "Dinner" }
+];
+
+type WebRecipeOption = {
+  id: string;
+  label: string;
+};
+
+type WebRecipeOptions = {
+  areas: WebRecipeOption[];
+  categories: WebRecipeOption[];
+  ingredients: WebRecipeOption[];
+};
+
+type WebRecipeSearchResult = {
+  id: string;
+  title: string;
+  category: string | null;
+  area: string | null;
+  thumbnailUrl: string | null;
+  tags: string[];
+};
+
+type WebRecipeDraft = {
+  sourceId: string;
+  title: string;
+  summary: string;
+  source: string | null;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  tags: string[];
+  ingredients: string[];
+  steps: string[];
+  imageUrl: string | null;
+  provenance: Recipe["provenance"];
+};
+
+type CookSearchMode = "saved" | "web";
+
+type SlotPickerTarget = {
+  date: string;
+  mealSlot: MealSlot;
+};
+
+type MealPlanSaveResponse = {
+  entries?: MealPlanEntry[];
+  error?: string;
+};
 
 type WakeLockSentinel = {
   release: () => Promise<void>;
@@ -131,6 +196,41 @@ function draftToCookRecipe(draft: CookDraftPayload): CookRecipe {
   };
 }
 
+function webDraftToCookDraft(draft: WebRecipeDraft): CookDraftPayload {
+  return {
+    title: draft.title,
+    summary: draft.summary,
+    servings: draft.servings,
+    totalMinutes: draft.prepMinutes + draft.cookMinutes,
+    ingredients: draft.ingredients.map((ingredient) => ({
+      quantity: null,
+      unit: null,
+      name: ingredient,
+      note: null
+    })),
+    steps: draft.steps.map((step) => ({
+      body: step,
+      timerMinutes: null
+    }))
+  };
+}
+
+function dateFromIso(value: string): Date {
+  return new Date(`${value}T12:00:00`);
+}
+
+function formatCookDate(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric"
+  }).format(dateFromIso(value));
+}
+
+function slotLabel(mealSlot: MealSlot): string {
+  return MEAL_SLOTS.find((slot) => slot.key === mealSlot)?.label ?? mealSlot;
+}
+
 function formatQuantity(quantity: number | null, scale: number): string {
   if (quantity === null) {
     return "";
@@ -199,16 +299,28 @@ export function saveAiCookDraft(draft: CookDraftPayload): void {
   sessionStorage.setItem(AI_DRAFT_STORAGE_KEY, JSON.stringify(draft));
 }
 
+function saveWebCookDraft(draft: CookDraftPayload): void {
+  sessionStorage.setItem(WEB_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+}
+
 export function CookClient({
   recipe: initialRecipe,
-  draftStorageKey
+  draftStorageKey,
+  recipes: initialRecipes = [],
+  today,
+  todaysMeals = []
 }: {
   recipe?: Recipe | null;
   draftStorageKey?: string;
+  recipes?: Recipe[];
+  today?: string;
+  todaysMeals?: MealPlanEntry[];
 }) {
   const [recipe, setRecipe] = useState<CookRecipe | null>(
     initialRecipe ? recipeToCookRecipe(initialRecipe) : null,
   );
+  const [recipes] = useState(initialRecipes);
+  const [todayEntries, setTodayEntries] = useState(todaysMeals);
   const [servings, setServings] = useState(initialRecipe?.servings ?? 4);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(() => new Set());
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -221,6 +333,28 @@ export function CookClient({
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [wakeStatus, setWakeStatus] = useState<"idle" | "on" | "unsupported">("idle");
+  const [searchMode, setSearchMode] = useState<CookSearchMode>("saved");
+  const [query, setQuery] = useState("");
+  const [areSavedFiltersOpen, setAreSavedFiltersOpen] = useState(false);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [tagFilter, setTagFilter] = useState("all");
+  const [minRating, setMinRating] = useState(0);
+  const [recentOnly, setRecentOnly] = useState(false);
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const [ingredientThreshold, setIngredientThreshold] = useState(1);
+  const [webOptions, setWebOptions] = useState<WebRecipeOptions>({
+    areas: [],
+    categories: [],
+    ingredients: []
+  });
+  const [webResults, setWebResults] = useState<WebRecipeSearchResult[]>([]);
+  const [webCategory, setWebCategory] = useState("all");
+  const [webArea, setWebArea] = useState("all");
+  const [webIngredient, setWebIngredient] = useState("all");
+  const [isWebFiltersOpen, setIsWebFiltersOpen] = useState(false);
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [slotPickerTarget, setSlotPickerTarget] = useState<SlotPickerTarget | null>(null);
+  const [isPlanningMeal, setIsPlanningMeal] = useState(false);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const timerDragRef = useRef<TimerDragState | null>(null);
 
@@ -303,17 +437,857 @@ export function CookClient({
     return timerSeconds[activeStep.id] ?? activeStep.timerMinutes * 60;
   }, [activeStep, timerSeconds]);
 
-  if (!recipe) {
-    return (
-      <EmptyState
-        action={
-          <Link href="/library">
-            <Button>Open library</Button>
-          </Link>
+  const plannedRecipeBySlot = useMemo(() => {
+    const bySlot = new Map<MealSlot, Recipe>();
+
+    for (const entry of todayEntries) {
+      if (entry.recipe) {
+        bySlot.set(entry.mealSlot, entry.recipe);
+      }
+    }
+
+    return bySlot;
+  }, [todayEntries]);
+
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const savedRecipe of recipes) {
+      for (const tag of savedRecipe.tags) {
+        tags.add(tag);
+      }
+    }
+
+    return [...tags].sort((a, b) => a.localeCompare(b));
+  }, [recipes]);
+
+  const availableIngredients = useMemo(() => {
+    const ingredients = new Map<string, string>();
+
+    for (const savedRecipe of recipes) {
+      for (const ingredient of savedRecipe.ingredients) {
+        const name = ingredient.name.trim();
+        if (name) {
+          ingredients.set(name.toLowerCase(), name);
         }
-        body="Choose a saved recipe, planned meal, or AI result to open cooking mode."
-        title="Choose a recipe to cook"
-      />
+      }
+    }
+
+    return [...ingredients.values()].sort((a, b) => a.localeCompare(b));
+  }, [recipes]);
+
+  const ingredientOptions = useMemo(
+    () => availableIngredients.filter((ingredient) => !selectedIngredients.includes(ingredient)),
+    [availableIngredients, selectedIngredients],
+  );
+
+  const filteredRecipes = useMemo(
+    () =>
+      filterRecipes(recipes, {
+        favoriteOnly,
+        ingredientThreshold,
+        minRating,
+        query,
+        recentOnly,
+        selectedIngredients,
+        tagFilter
+      }),
+    [
+      favoriteOnly,
+      ingredientThreshold,
+      minRating,
+      query,
+      recentOnly,
+      recipes,
+      selectedIngredients,
+      tagFilter
+    ],
+  );
+
+  const savedFilterCount =
+    (favoriteOnly ? 1 : 0) +
+    (recentOnly ? 1 : 0) +
+    (tagFilter !== "all" ? 1 : 0) +
+    (minRating > 0 ? 1 : 0) +
+    selectedIngredients.length;
+  const webFilterCount =
+    (webCategory !== "all" ? 1 : 0) +
+    (webArea !== "all" ? 1 : 0) +
+    (webIngredient !== "all" ? 1 : 0);
+
+  useEffect(() => {
+    if (recipe || webOptions.categories.length > 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadOptions() {
+      try {
+        const response = await fetch("/api/web-recipes/options");
+        const payload = (await response.json()) as { options?: WebRecipeOptions };
+
+        if (!cancelled && payload.options) {
+          setWebOptions(payload.options);
+        }
+      } catch {
+        if (!cancelled) {
+          setStatus("Web recipe filters could not be loaded.");
+        }
+      }
+    }
+
+    void loadOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [recipe, webOptions.categories.length]);
+
+  if (!recipe) {
+    function addIngredientFilter(ingredient: string) {
+      if (ingredient === "all") {
+        return;
+      }
+
+      setSelectedIngredients((current) =>
+        current.includes(ingredient) ? current : [...current, ingredient],
+      );
+      setIngredientThreshold((current) => Math.max(1, current));
+    }
+
+    function removeIngredientFilter(ingredient: string) {
+      setSelectedIngredients((current) => current.filter((item) => item !== ingredient));
+    }
+
+    function clearSavedFilters() {
+      setFavoriteOnly(false);
+      setRecentOnly(false);
+      setTagFilter("all");
+      setMinRating(0);
+      setSelectedIngredients([]);
+      setIngredientThreshold(1);
+    }
+
+    function openSlotPicker(mealSlot: MealSlot) {
+      if (!today) {
+        setStatus("Today could not be resolved for planning.");
+        return;
+      }
+
+      setSearchMode("saved");
+      setQuery("");
+      setTagFilter("all");
+      setMinRating(0);
+      setFavoriteOnly(false);
+      setRecentOnly(false);
+      setSelectedIngredients([]);
+      setIngredientThreshold(1);
+      setAreSavedFiltersOpen(false);
+      setSlotPickerTarget({ date: today, mealSlot });
+      setStatus(null);
+    }
+
+    async function savePlannedMeal(target: SlotPickerTarget, selectedRecipe: Recipe) {
+      setIsPlanningMeal(true);
+      setStatus(null);
+
+      try {
+        const response = await fetch("/api/meal-plans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entries: [
+              {
+                date: target.date,
+                mealSlot: target.mealSlot,
+                recipeId: selectedRecipe.id,
+                locked: true
+              }
+            ]
+          })
+        });
+        const payload = (await response.json()) as MealPlanSaveResponse;
+
+        if (!response.ok || !payload.entries) {
+          throw new Error(payload.error ?? "Could not set this meal.");
+        }
+
+        setTodayEntries(payload.entries);
+        setSlotPickerTarget(null);
+        setStatus(
+          `${selectedRecipe.title} set for ${slotLabel(target.mealSlot).toLowerCase()}.`,
+        );
+      } catch (caught) {
+        setStatus(caught instanceof Error ? caught.message : "Could not set this meal.");
+      } finally {
+        setIsPlanningMeal(false);
+      }
+    }
+
+    async function planRandomMeal(mealSlot: MealSlot) {
+      if (!today) {
+        setStatus("Today could not be resolved for planning.");
+        return;
+      }
+
+      const eligibleRecipes = recipes.filter((savedRecipe) => savedRecipe.mealSlots.includes(mealSlot));
+      const pool = eligibleRecipes.length > 0 ? eligibleRecipes : recipes;
+      const randomRecipe = pool[Math.floor(Math.random() * pool.length)];
+
+      if (!randomRecipe) {
+        setStatus("Add saved recipes before choosing a random meal.");
+        return;
+      }
+
+      await savePlannedMeal({ date: today, mealSlot }, randomRecipe);
+    }
+
+    async function searchWeb(event?: FormEvent<HTMLFormElement>) {
+      event?.preventDefault();
+      setSearchMode("web");
+      setIsSearchingWeb(true);
+      setStatus(null);
+
+      const params = new URLSearchParams();
+      if (query.trim()) {
+        params.set("q", query.trim());
+      }
+      if (webCategory !== "all") {
+        params.set("category", webCategory);
+      }
+      if (webArea !== "all") {
+        params.set("area", webArea);
+      }
+      if (webIngredient !== "all") {
+        params.append("ingredient", webIngredient);
+      }
+
+      try {
+        const response = await fetch(`/api/web-recipes/search?${params.toString()}`);
+        const payload = (await response.json()) as {
+          error?: string;
+          recipes?: WebRecipeSearchResult[];
+        };
+
+        if (!response.ok || !payload.recipes) {
+          throw new Error(payload.error ?? "Web recipe search could not be completed.");
+        }
+
+        setWebResults(payload.recipes);
+      } catch (caught) {
+        setStatus(caught instanceof Error ? caught.message : "Web recipe search failed.");
+      } finally {
+        setIsSearchingWeb(false);
+      }
+    }
+
+    async function cookWebRecipe(recipeId: string) {
+      setStatus(null);
+
+      try {
+        const response = await fetch(`/api/web-recipes/${recipeId}`);
+        const payload = (await response.json()) as { draft?: WebRecipeDraft; error?: string };
+
+        if (!response.ok || !payload.draft) {
+          throw new Error(payload.error ?? "Web recipe could not be loaded.");
+        }
+
+        saveWebCookDraft(webDraftToCookDraft(payload.draft));
+        window.location.assign("/cook?draft=web");
+      } catch (caught) {
+        setStatus(caught instanceof Error ? caught.message : "Web recipe could not be opened.");
+      }
+    }
+
+    const hasSavedResults = filteredRecipes.length > 0;
+    const todayLabel = today ? formatCookDate(today) : "Today";
+    const pickerRecipes = slotPickerTarget
+      ? filteredRecipes.filter(({ recipe: filteredRecipe }) =>
+          filteredRecipe.mealSlots.includes(slotPickerTarget.mealSlot),
+        )
+      : [];
+    const pickerFallbackRecipes = slotPickerTarget && pickerRecipes.length === 0
+      ? filteredRecipes
+      : pickerRecipes;
+
+    return (
+      <div className="screen-stack cook-start-screen">
+        <section className="cook-today-panel">
+          <div className="cook-start-heading">
+            <div>
+              <p className="plan-date">Today</p>
+              <h2>{todayLabel}</h2>
+            </div>
+            <Utensils aria-hidden="true" size={22} />
+          </div>
+
+          <div className="cook-meal-list">
+            {MEAL_SLOTS.map((slot) => {
+              const plannedRecipe = plannedRecipeBySlot.get(slot.key) ?? null;
+
+              return (
+                <article className={`cook-meal-row cook-meal-row-${slot.key}`} key={slot.key}>
+                  <div className="cook-meal-slot">
+                    <span>
+                      <i className={`meal-slot-marker meal-bar-${slot.key}`} />
+                      {slot.label}
+                    </span>
+                    {plannedRecipe ? (
+                      <>
+                        <strong>{plannedRecipe.title}</strong>
+                        <p>
+                          {plannedRecipe.prepMinutes + plannedRecipe.cookMinutes} min ·{" "}
+                          {plannedRecipe.servings} servings
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <strong>No meal planned</strong>
+                        <p>Pick from saved recipes or let RecipAI choose one.</p>
+                      </>
+                    )}
+                  </div>
+                  <div className="cook-meal-actions">
+                    {plannedRecipe ? (
+                      <>
+                        <button
+                          disabled={isPlanningMeal}
+                          onClick={() => void planRandomMeal(slot.key)}
+                          type="button"
+                        >
+                          <Dice5 aria-hidden="true" size={16} />
+                          Random
+                        </button>
+                        <button onClick={() => openSlotPicker(slot.key)} type="button">
+                          <Search aria-hidden="true" size={16} />
+                          Choose
+                        </button>
+                        <button
+                          className="cook-inline-button cook-inline-button-primary"
+                          onClick={() => window.location.assign(`/cook?recipeId=${plannedRecipe.id}`)}
+                          type="button"
+                        >
+                          <ChefHat aria-hidden="true" size={16} />
+                          Cook
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          disabled={isPlanningMeal}
+                          onClick={() => void planRandomMeal(slot.key)}
+                          type="button"
+                        >
+                          <Dice5 aria-hidden="true" size={16} />
+                          Random
+                        </button>
+                        <button onClick={() => openSlotPicker(slot.key)} type="button">
+                          <Search aria-hidden="true" size={16} />
+                          Choose
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {slotPickerTarget ? (
+            <section className="cook-slot-picker" aria-label={`${slotLabel(slotPickerTarget.mealSlot)} picker`}>
+              <div className="cook-picker-heading">
+                <div>
+                  <p className="plan-date">{slotLabel(slotPickerTarget.mealSlot)}</p>
+                  <h3>Choose a meal for today</h3>
+                </div>
+                <button onClick={() => setSlotPickerTarget(null)} type="button">
+                  <X aria-hidden="true" size={16} />
+                  Close
+                </button>
+              </div>
+
+              <form className="cook-search-form" onSubmit={(event) => event.preventDefault()}>
+                <Search aria-hidden="true" size={18} />
+                <input
+                  aria-label={`Search ${slotLabel(slotPickerTarget.mealSlot)} recipes`}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={`Search ${slotLabel(slotPickerTarget.mealSlot).toLowerCase()} recipes`}
+                  value={query}
+                />
+              </form>
+
+              <div className="cook-search-controls">
+                <p className="cook-picker-count">
+                  {pickerFallbackRecipes.length} saved recipe{pickerFallbackRecipes.length === 1 ? "" : "s"}
+                </p>
+                <button
+                  className="cook-filter-toggle"
+                  onClick={() => setAreSavedFiltersOpen((value) => !value)}
+                  type="button"
+                >
+                  <SlidersHorizontal aria-hidden="true" size={16} />
+                  Filters
+                  {savedFilterCount > 0 ? <span>{savedFilterCount}</span> : null}
+                </button>
+              </div>
+
+              {areSavedFiltersOpen ? (
+                <div className="cook-filter-panel" aria-label="Saved recipe filters">
+                  <button
+                    aria-pressed={favoriteOnly}
+                    onClick={() => setFavoriteOnly((value) => !value)}
+                    type="button"
+                  >
+                    <Heart aria-hidden="true" size={15} />
+                    Favorites
+                  </button>
+                  <button
+                    aria-pressed={recentOnly}
+                    onClick={() => setRecentOnly((value) => !value)}
+                    type="button"
+                  >
+                    <Shuffle aria-hidden="true" size={15} />
+                    Recent
+                  </button>
+                  <label>
+                    Tag
+                    <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
+                      <option value="all">All</option>
+                      {availableTags.map((tag) => (
+                        <option key={tag} value={tag}>
+                          {tag}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Rating
+                    <select onChange={(event) => setMinRating(Number(event.target.value))} value={minRating}>
+                      <option value={0}>Any</option>
+                      <option value={3}>3+</option>
+                      <option value={4}>4+</option>
+                      <option value={5}>5</option>
+                    </select>
+                  </label>
+                  <label>
+                    Ingredient
+                    <select
+                      aria-label="Add ingredient filter"
+                      onChange={(event) => addIngredientFilter(event.target.value)}
+                      value="all"
+                    >
+                      <option value="all">Add</option>
+                      {ingredientOptions.map((ingredient) => (
+                        <option key={ingredient} value={ingredient}>
+                          {ingredient}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {selectedIngredients.length > 0 ? (
+                    <label>
+                      Match
+                      <select
+                        aria-label="Ingredient match threshold"
+                        onChange={(event) => setIngredientThreshold(Number(event.target.value))}
+                        value={Math.min(ingredientThreshold, selectedIngredients.length)}
+                      >
+                        {selectedIngredients.map((ingredient, index) => (
+                          <option key={ingredient} value={index + 1}>
+                            {index + 1}+
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                  {savedFilterCount > 0 ? (
+                    <button className="cook-clear-filter" onClick={clearSavedFilters} type="button">
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {selectedIngredients.length > 0 ? (
+                <div className="web-selected-ingredients" aria-label="Selected ingredient filters">
+                  {selectedIngredients.map((ingredient) => (
+                    <button
+                      aria-label={`Remove ${ingredient}`}
+                      key={ingredient}
+                      onClick={() => removeIngredientFilter(ingredient)}
+                      type="button"
+                    >
+                      {ingredient}
+                      <X aria-hidden="true" size={14} />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="cook-picker-results">
+                {pickerFallbackRecipes.length > 0 ? (
+                  pickerFallbackRecipes.slice(0, 8).map(({ ingredientMatchCount, recipe: pickerRecipe }) => {
+                    const isPreferredSlot = pickerRecipe.mealSlots.includes(slotPickerTarget.mealSlot);
+
+                    return (
+                      <article className="cook-result-row" key={pickerRecipe.id}>
+                        {pickerRecipe.imageUrl ? (
+                          <Image
+                            alt=""
+                            height={58}
+                            src={pickerRecipe.imageUrl}
+                            unoptimized
+                            width={58}
+                          />
+                        ) : (
+                          <div className="cook-result-thumb">
+                            <ChefHat aria-hidden="true" size={20} />
+                          </div>
+                        )}
+                        <div className="cook-result-main">
+                          <h3>{pickerRecipe.title}</h3>
+                          <p>{pickerRecipe.summary}</p>
+                          <div className="cook-result-meta">
+                            <span>{pickerRecipe.prepMinutes + pickerRecipe.cookMinutes} min</span>
+                            <span>
+                              <Star aria-hidden="true" fill="currentColor" size={13} />
+                              {pickerRecipe.rating}
+                            </span>
+                            {!isPreferredSlot ? (
+                              <span>Not marked for {slotLabel(slotPickerTarget.mealSlot).toLowerCase()}</span>
+                            ) : null}
+                            {selectedIngredients.length > 0 ? (
+                              <span>
+                                {ingredientMatchCount}/{selectedIngredients.length} ingredients
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <button
+                          className="cook-inline-button cook-inline-button-primary"
+                          disabled={isPlanningMeal}
+                          onClick={() => void savePlannedMeal(slotPickerTarget, pickerRecipe)}
+                          type="button"
+                        >
+                          Set
+                        </button>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="web-empty-state">
+                    <Filter aria-hidden="true" size={28} />
+                    <h3>No saved recipes found</h3>
+                    <p>Try a different search or clear filters.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : null}
+        </section>
+
+        {status ? <p className="status-text">{status}</p> : null}
+
+        <section className="cook-search-panel" id="cook-search">
+          <div className="cook-start-heading">
+            <div>
+              <p className="plan-date">Start cooking</p>
+              <h2>Search saved or web recipes</h2>
+            </div>
+            <ChefHat aria-hidden="true" size={22} />
+          </div>
+
+          <form className="cook-search-form" onSubmit={searchMode === "web" ? searchWeb : (event) => event.preventDefault()}>
+            <Search aria-hidden="true" size={18} />
+            <input
+              aria-label="Search saved or web recipes"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search saved or web recipes"
+              value={query}
+            />
+            {searchMode === "web" ? (
+              <button disabled={isSearchingWeb} type="submit">
+                {isSearchingWeb ? "Searching" : "Search"}
+              </button>
+            ) : null}
+          </form>
+
+          <div className="cook-search-controls">
+            <div className="mode-toggle cook-mode-toggle" aria-label="Recipe source">
+              <button
+                aria-pressed={searchMode === "saved"}
+                onClick={() => setSearchMode("saved")}
+                type="button"
+              >
+                Saved
+              </button>
+              <button
+                aria-pressed={searchMode === "web"}
+                onClick={() => setSearchMode("web")}
+                type="button"
+              >
+                Web
+              </button>
+            </div>
+            <button
+              className="cook-filter-toggle"
+              onClick={() =>
+                searchMode === "saved"
+                  ? setAreSavedFiltersOpen((value) => !value)
+                  : setIsWebFiltersOpen((value) => !value)
+              }
+              type="button"
+            >
+              <SlidersHorizontal aria-hidden="true" size={16} />
+              Filters
+              {(searchMode === "saved" ? savedFilterCount : webFilterCount) > 0 ? (
+                <span>{searchMode === "saved" ? savedFilterCount : webFilterCount}</span>
+              ) : null}
+            </button>
+          </div>
+
+          {searchMode === "saved" && areSavedFiltersOpen ? (
+            <div className="cook-filter-panel" aria-label="Saved recipe filters">
+              <button
+                aria-pressed={favoriteOnly}
+                onClick={() => setFavoriteOnly((value) => !value)}
+                type="button"
+              >
+                <Heart aria-hidden="true" size={15} />
+                Favorites
+              </button>
+              <button
+                aria-pressed={recentOnly}
+                onClick={() => setRecentOnly((value) => !value)}
+                type="button"
+              >
+                <Shuffle aria-hidden="true" size={15} />
+                Recent
+              </button>
+              <label>
+                Tag
+                <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
+                  <option value="all">All</option>
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Rating
+                <select onChange={(event) => setMinRating(Number(event.target.value))} value={minRating}>
+                  <option value={0}>Any</option>
+                  <option value={3}>3+</option>
+                  <option value={4}>4+</option>
+                  <option value={5}>5</option>
+                </select>
+              </label>
+              <label>
+                Ingredient
+                <select
+                  aria-label="Add ingredient filter"
+                  onChange={(event) => addIngredientFilter(event.target.value)}
+                  value="all"
+                >
+                  <option value="all">Add</option>
+                  {ingredientOptions.map((ingredient) => (
+                    <option key={ingredient} value={ingredient}>
+                      {ingredient}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {selectedIngredients.length > 0 ? (
+                <label>
+                  Match
+                  <select
+                    aria-label="Ingredient match threshold"
+                    onChange={(event) => setIngredientThreshold(Number(event.target.value))}
+                    value={Math.min(ingredientThreshold, selectedIngredients.length)}
+                  >
+                    {selectedIngredients.map((ingredient, index) => (
+                      <option key={ingredient} value={index + 1}>
+                        {index + 1}+
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {savedFilterCount > 0 ? (
+                <button className="cook-clear-filter" onClick={clearSavedFilters} type="button">
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {searchMode === "saved" && selectedIngredients.length > 0 ? (
+            <div className="web-selected-ingredients" aria-label="Selected ingredient filters">
+              {selectedIngredients.map((ingredient) => (
+                <button
+                  aria-label={`Remove ${ingredient}`}
+                  key={ingredient}
+                  onClick={() => removeIngredientFilter(ingredient)}
+                  type="button"
+                >
+                  {ingredient}
+                  <X aria-hidden="true" size={14} />
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {searchMode === "web" && isWebFiltersOpen ? (
+            <div className="cook-filter-panel cook-web-filter-panel" aria-label="Web recipe filters">
+              <label>
+                Category
+                <select onChange={(event) => setWebCategory(event.target.value)} value={webCategory}>
+                  <option value="all">All</option>
+                  {webOptions.categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Area
+                <select onChange={(event) => setWebArea(event.target.value)} value={webArea}>
+                  <option value="all">All</option>
+                  {webOptions.areas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ingredient
+                <select onChange={(event) => setWebIngredient(event.target.value)} value={webIngredient}>
+                  <option value="all">All</option>
+                  {webOptions.ingredients.map((ingredient) => (
+                    <option key={ingredient.id} value={ingredient.id}>
+                      {ingredient.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {webFilterCount > 0 ? (
+                <button
+                  className="cook-clear-filter"
+                  onClick={() => {
+                    setWebCategory("all");
+                    setWebArea("all");
+                    setWebIngredient("all");
+                  }}
+                  type="button"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {searchMode === "saved" ? (
+            <div className="cook-result-list">
+              {hasSavedResults ? (
+                filteredRecipes.slice(0, 12).map(({ ingredientMatchCount, recipe: savedRecipe }) => (
+                  <article className="cook-result-row" key={savedRecipe.id}>
+                    {savedRecipe.imageUrl ? (
+                      <Image
+                        alt=""
+                        height={58}
+                        src={savedRecipe.imageUrl}
+                        unoptimized
+                        width={58}
+                      />
+                    ) : (
+                      <div className="cook-result-thumb">
+                        <ChefHat aria-hidden="true" size={20} />
+                      </div>
+                    )}
+                    <div className="cook-result-main">
+                      <h3>{savedRecipe.title}</h3>
+                      <p>{savedRecipe.summary}</p>
+                      <div className="cook-result-meta">
+                        <span>{savedRecipe.prepMinutes + savedRecipe.cookMinutes} min</span>
+                        <span>
+                          <Star aria-hidden="true" fill="currentColor" size={13} />
+                          {savedRecipe.rating}
+                        </span>
+                        {selectedIngredients.length > 0 ? (
+                          <span>
+                            {ingredientMatchCount}/{selectedIngredients.length} ingredients
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <button
+                      className="cook-inline-button cook-inline-button-primary"
+                      onClick={() => window.location.assign(`/cook?recipeId=${savedRecipe.id}`)}
+                      type="button"
+                    >
+                      Cook
+                    </button>
+                  </article>
+                ))
+              ) : (
+                <div className="web-empty-state">
+                  <Filter aria-hidden="true" size={28} />
+                  <h3>No saved recipes found</h3>
+                  <p>Try a different search, clear filters, or add a recipe to your library.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="cook-result-list">
+              {webResults.length > 0 ? (
+                webResults.map((webRecipe) => (
+                  <article className="cook-result-row" key={webRecipe.id}>
+                    {webRecipe.thumbnailUrl ? (
+                      <Image
+                        alt=""
+                        height={58}
+                        src={webRecipe.thumbnailUrl}
+                        unoptimized
+                        width={58}
+                      />
+                    ) : (
+                      <div className="cook-result-thumb">
+                        <Globe2 aria-hidden="true" size={20} />
+                      </div>
+                    )}
+                    <div className="cook-result-main">
+                      <h3>{webRecipe.title}</h3>
+                      <p>{[webRecipe.area, webRecipe.category].filter(Boolean).join(" · ") || "Web recipe"}</p>
+                      <div className="web-tag-row">
+                        {webRecipe.tags.slice(0, 3).map((tag) => (
+                          <span key={tag}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      className="cook-inline-button cook-inline-button-primary"
+                      onClick={() => void cookWebRecipe(webRecipe.id)}
+                      type="button"
+                    >
+                      Cook
+                    </button>
+                  </article>
+                ))
+              ) : (
+                <div className="web-empty-state">
+                  <Globe2 aria-hidden="true" size={28} />
+                  <h3>Search web recipes</h3>
+                  <p>Enter a recipe idea, or open filters and search by category, area, or ingredient.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
     );
   }
 
@@ -699,4 +1673,4 @@ export function CookClient({
   );
 }
 
-export { AI_DRAFT_STORAGE_KEY };
+export { AI_DRAFT_STORAGE_KEY, WEB_DRAFT_STORAGE_KEY };

@@ -2596,10 +2596,13 @@ button {
   }
 }
 
+.cook-start-screen,
 .cook-screen {
   padding-bottom: 18px;
 }
 
+.cook-today-panel,
+.cook-search-panel,
 .cook-hero,
 .cook-toolbar,
 .cook-panel,
@@ -2608,6 +2611,418 @@ button {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
+}
+
+.cook-today-panel,
+.cook-search-panel {
+  display: grid;
+  gap: 13px;
+  padding: 14px;
+}
+
+.cook-start-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.cook-start-heading svg {
+  color: var(--primary);
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.cook-start-heading h2,
+.cook-start-heading p,
+.cook-meal-slot strong,
+.cook-meal-slot p,
+.cook-result-main h3,
+.cook-result-main p {
+  margin: 0;
+}
+
+.cook-start-heading h2 {
+  font-size: 1.22rem;
+  line-height: 1.18;
+  margin-top: 4px;
+}
+
+.cook-meal-list,
+.cook-result-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cook-meal-row {
+  align-items: center;
+  background: #fbfdfb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 11px;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cook-meal-row::before {
+  bottom: 0;
+  content: "";
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 4px;
+}
+
+.cook-meal-row-breakfast::before {
+  background: #e7a93d;
+}
+
+.cook-meal-row-lunch::before {
+  background: #2f8c63;
+}
+
+.cook-meal-row-dinner::before {
+  background: var(--accent);
+}
+
+.cook-meal-slot {
+  display: grid;
+  gap: 4px;
+}
+
+.cook-meal-slot span {
+  align-items: center;
+  color: var(--primary);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 900;
+  gap: 8px;
+  text-transform: uppercase;
+}
+
+.cook-meal-slot .meal-slot-marker {
+  height: 22px;
+  margin-top: 0;
+  width: 5px;
+}
+
+.cook-slot-picker {
+  background: #fbfdfb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+}
+
+.cook-picker-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.cook-picker-heading h3,
+.cook-picker-heading p,
+.cook-picker-count {
+  margin: 0;
+}
+
+.cook-picker-heading h3 {
+  font-size: 1.04rem;
+  line-height: 1.2;
+  margin-top: 3px;
+}
+
+.cook-picker-heading button {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--primary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 900;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 9px;
+}
+
+.cook-picker-count {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.cook-picker-results {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  padding: 0 10px;
+}
+
+.cook-meal-slot strong {
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.cook-meal-slot p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.cook-meal-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+}
+
+.cook-meal-actions button,
+.cook-inline-button,
+.cook-filter-toggle,
+.cook-clear-filter {
+  align-items: center;
+  border-radius: 8px;
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 900;
+  gap: 7px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  text-decoration: none;
+}
+
+.cook-meal-actions button,
+.cook-filter-toggle,
+.cook-clear-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--primary);
+}
+
+.cook-inline-button {
+  border: 1px solid var(--border);
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.cook-inline-button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.cook-search-form {
+  align-items: center;
+  background: #fbfdfb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 46px;
+  padding: 0 8px 0 12px;
+}
+
+.cook-search-form:focus-within {
+  border-color: var(--primary);
+  outline: 3px solid rgba(21, 79, 59, 0.14);
+}
+
+.cook-search-form svg {
+  color: var(--muted);
+}
+
+.cook-search-form input {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  min-width: 0;
+  outline: 0;
+}
+
+.cook-search-form button {
+  background: var(--primary-soft);
+  border: 0;
+  border-radius: 7px;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.cook-search-controls {
+  align-items: center;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.cook-mode-toggle {
+  min-width: 0;
+}
+
+.cook-filter-toggle {
+  min-height: 46px;
+}
+
+.cook-filter-toggle span {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 0.74rem;
+  height: 20px;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 6px;
+}
+
+.cook-filter-panel {
+  background: #fbfdfb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 10px;
+}
+
+.cook-filter-panel button:not(.cook-clear-filter),
+.cook-filter-panel label {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 850;
+  gap: 4px;
+  min-height: 48px;
+  padding: 8px 10px;
+}
+
+.cook-filter-panel button:not(.cook-clear-filter) {
+  align-items: center;
+  color: var(--primary);
+  grid-template-columns: auto 1fr;
+  text-align: left;
+}
+
+.cook-filter-panel button[aria-pressed="true"] {
+  background: var(--primary-soft);
+  border-color: #cbe6d5;
+}
+
+.cook-filter-panel select {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 850;
+  min-width: 0;
+  outline: 0;
+}
+
+.cook-clear-filter {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.cook-web-filter-panel {
+  grid-template-columns: 1fr;
+}
+
+.cook-result-row {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  min-height: 80px;
+  padding: 10px 0;
+}
+
+.cook-result-row:first-child {
+  border-top: 0;
+}
+
+.cook-result-row > img,
+.cook-result-thumb {
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  height: 58px;
+  object-fit: cover;
+  width: 58px;
+}
+
+.cook-result-thumb {
+  align-items: center;
+  background: var(--surface-strong);
+  color: var(--primary);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.cook-result-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.cook-result-main h3 {
+  font-size: 0.98rem;
+  line-height: 1.16;
+}
+
+.cook-result-main p {
+  color: var(--muted);
+  display: -webkit-box;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.cook-result-meta {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cook-result-meta span {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 850;
+  gap: 4px;
+}
+
+.cook-result-meta svg {
+  color: var(--accent);
+}
+
+@media (min-width: 460px) {
+  .cook-meal-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cook-meal-actions {
+    min-width: 190px;
+  }
 }
 
 .cook-hero {
