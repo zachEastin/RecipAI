@@ -19,10 +19,17 @@ import {
   TimerReset,
   Utensils,
   Volume2,
-  X
+  X,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type PointerEvent,
+} from "react";
 
 import type { MealSlot, Recipe } from "@recipai/recipes";
 import type { MealPlanEntry } from "@recipai/db";
@@ -36,7 +43,7 @@ const WEB_DRAFT_STORAGE_KEY = "recipai-web-cook-draft";
 const MEAL_SLOTS: Array<{ key: MealSlot; label: string }> = [
   { key: "breakfast", label: "Breakfast" },
   { key: "lunch", label: "Lunch" },
-  { key: "dinner", label: "Dinner" }
+  { key: "dinner", label: "Dinner" },
 ];
 
 type WebRecipeOption = {
@@ -168,13 +175,13 @@ function recipeToCookRecipe(recipe: Recipe): CookRecipe {
       quantity: ingredient.quantity,
       unit: ingredient.unit,
       name: ingredient.name,
-      note: ingredient.note
+      note: ingredient.note,
     })),
     steps: recipe.steps.map((step) => ({
       id: step.id,
       body: step.body,
-      timerMinutes: step.timerMinutes
-    }))
+      timerMinutes: step.timerMinutes,
+    })),
   };
 }
 
@@ -187,12 +194,12 @@ function draftToCookRecipe(draft: CookDraftPayload): CookRecipe {
     totalMinutes: draft.totalMinutes,
     ingredients: draft.ingredients.map((ingredient, index) => ({
       id: `draft-ingredient-${index + 1}`,
-      ...ingredient
+      ...ingredient,
     })),
     steps: draft.steps.map((step, index) => ({
       id: `draft-step-${index + 1}`,
-      ...step
-    }))
+      ...step,
+    })),
   };
 }
 
@@ -206,12 +213,12 @@ function webDraftToCookDraft(draft: WebRecipeDraft): CookDraftPayload {
       quantity: null,
       unit: null,
       name: ingredient,
-      note: null
+      note: null,
     })),
     steps: draft.steps.map((step) => ({
       body: step,
-      timerMinutes: null
-    }))
+      timerMinutes: null,
+    })),
   };
 }
 
@@ -223,7 +230,7 @@ function formatCookDate(value: string): string {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "short",
-    day: "numeric"
+    day: "numeric",
   }).format(dateFromIso(value));
 }
 
@@ -253,7 +260,7 @@ function viewportSize(): { height: number; width: number } {
 
   return {
     height: window.innerHeight,
-    width: window.innerWidth
+    width: window.innerWidth,
   };
 }
 
@@ -262,11 +269,17 @@ function fullTimerWidth(): number {
   return Math.min(FULL_TIMER_MAX_WIDTH, width - FLOATING_TIMER_MARGIN * 2);
 }
 
-function clampPosition(position: TimerPosition, mode: FloatingTimerMode): TimerPosition {
+function clampPosition(
+  position: TimerPosition,
+  mode: FloatingTimerMode,
+): TimerPosition {
   const { height, width } = viewportSize();
   const widgetWidth = mode === "full" ? fullTimerWidth() : COMPACT_TIMER_SIZE;
   const widgetHeight = mode === "full" ? FULL_TIMER_HEIGHT : COMPACT_TIMER_SIZE;
-  const maxX = Math.max(FLOATING_TIMER_MARGIN, width - widgetWidth - FLOATING_TIMER_MARGIN);
+  const maxX = Math.max(
+    FLOATING_TIMER_MARGIN,
+    width - widgetWidth - FLOATING_TIMER_MARGIN,
+  );
   const maxY = Math.max(
     FLOATING_TIMER_MARGIN,
     height - widgetHeight - FLOATING_TIMER_NAV_CLEARANCE,
@@ -274,7 +287,7 @@ function clampPosition(position: TimerPosition, mode: FloatingTimerMode): TimerP
 
   return {
     x: Math.min(Math.max(position.x, FLOATING_TIMER_MARGIN), maxX),
-    y: Math.min(Math.max(position.y, FLOATING_TIMER_MARGIN), maxY)
+    y: Math.min(Math.max(position.y, FLOATING_TIMER_MARGIN), maxY),
   };
 }
 
@@ -285,11 +298,11 @@ function defaultTimerPosition(mode: FloatingTimerMode): TimerPosition {
     mode === "full"
       ? {
           x: FLOATING_TIMER_MARGIN,
-          y: height - FULL_TIMER_HEIGHT - FLOATING_TIMER_NAV_CLEARANCE
+          y: height - FULL_TIMER_HEIGHT - FLOATING_TIMER_NAV_CLEARANCE,
         }
       : {
           x: width - COMPACT_TIMER_SIZE - FLOATING_TIMER_MARGIN,
-          y: height - COMPACT_TIMER_SIZE - FLOATING_TIMER_NAV_CLEARANCE
+          y: height - COMPACT_TIMER_SIZE - FLOATING_TIMER_NAV_CLEARANCE,
         },
     mode,
   );
@@ -308,7 +321,7 @@ export function CookClient({
   draftStorageKey,
   recipes: initialRecipes = [],
   today,
-  todaysMeals = []
+  todaysMeals = [],
 }: {
   recipe?: Recipe | null;
   draftStorageKey?: string;
@@ -322,17 +335,24 @@ export function CookClient({
   const [recipes] = useState(initialRecipes);
   const [todayEntries, setTodayEntries] = useState(todaysMeals);
   const [servings, setServings] = useState(initialRecipe?.servings ?? 4);
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(() => new Set());
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState<Record<string, number>>({});
   const [runningTimerId, setRunningTimerId] = useState<string | null>(null);
   const [floatingTimerId, setFloatingTimerId] = useState<string | null>(null);
   const [floatingTimerMode, setFloatingTimerMode] =
     useState<FloatingTimerMode>("compact");
-  const [timerPosition, setTimerPosition] = useState<TimerPosition>({ x: 24, y: 128 });
+  const [timerPosition, setTimerPosition] = useState<TimerPosition>({
+    x: 24,
+    y: 128,
+  });
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<string | null>(null);
-  const [wakeStatus, setWakeStatus] = useState<"idle" | "on" | "unsupported">("idle");
+  const [wakeStatus, setWakeStatus] = useState<"idle" | "on" | "unsupported">(
+    "idle",
+  );
   const [searchMode, setSearchMode] = useState<CookSearchMode>("saved");
   const [query, setQuery] = useState("");
   const [areSavedFiltersOpen, setAreSavedFiltersOpen] = useState(false);
@@ -345,7 +365,7 @@ export function CookClient({
   const [webOptions, setWebOptions] = useState<WebRecipeOptions>({
     areas: [],
     categories: [],
-    ingredients: []
+    ingredients: [],
   });
   const [webResults, setWebResults] = useState<WebRecipeSearchResult[]>([]);
   const [webCategory, setWebCategory] = useState("all");
@@ -353,7 +373,8 @@ export function CookClient({
   const [webIngredient, setWebIngredient] = useState("all");
   const [isWebFiltersOpen, setIsWebFiltersOpen] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
-  const [slotPickerTarget, setSlotPickerTarget] = useState<SlotPickerTarget | null>(null);
+  const [slotPickerTarget, setSlotPickerTarget] =
+    useState<SlotPickerTarget | null>(null);
   const [isPlanningMeal, setIsPlanningMeal] = useState(false);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const timerDragRef = useRef<TimerDragState | null>(null);
@@ -418,9 +439,12 @@ export function CookClient({
   const activeStep = recipe?.steps[activeStepIndex] ?? null;
   const scale = recipe ? servings / recipe.servings : 1;
   const checkedCount = checkedIngredients.size;
-  const floatingTimerIndex = recipe?.steps.findIndex((step) => step.id === floatingTimerId) ?? -1;
+  const floatingTimerIndex =
+    recipe?.steps.findIndex((step) => step.id === floatingTimerId) ?? -1;
   const floatingTimerStep =
-    floatingTimerIndex >= 0 && recipe ? recipe.steps[floatingTimerIndex] ?? null : null;
+    floatingTimerIndex >= 0 && recipe
+      ? (recipe.steps[floatingTimerIndex] ?? null)
+      : null;
   const floatingTimerTotalSeconds = (floatingTimerStep?.timerMinutes ?? 0) * 60;
   const floatingTimerRemainingSeconds = floatingTimerStep
     ? (timerSeconds[floatingTimerStep.id] ?? floatingTimerTotalSeconds)
@@ -476,7 +500,10 @@ export function CookClient({
   }, [recipes]);
 
   const ingredientOptions = useMemo(
-    () => availableIngredients.filter((ingredient) => !selectedIngredients.includes(ingredient)),
+    () =>
+      availableIngredients.filter(
+        (ingredient) => !selectedIngredients.includes(ingredient),
+      ),
     [availableIngredients, selectedIngredients],
   );
 
@@ -489,7 +516,7 @@ export function CookClient({
         query,
         recentOnly,
         selectedIngredients,
-        tagFilter
+        tagFilter,
       }),
     [
       favoriteOnly,
@@ -499,7 +526,7 @@ export function CookClient({
       recentOnly,
       recipes,
       selectedIngredients,
-      tagFilter
+      tagFilter,
     ],
   );
 
@@ -524,7 +551,9 @@ export function CookClient({
     async function loadOptions() {
       try {
         const response = await fetch("/api/web-recipes/options");
-        const payload = (await response.json()) as { options?: WebRecipeOptions };
+        const payload = (await response.json()) as {
+          options?: WebRecipeOptions;
+        };
 
         if (!cancelled && payload.options) {
           setWebOptions(payload.options);
@@ -556,7 +585,9 @@ export function CookClient({
     }
 
     function removeIngredientFilter(ingredient: string) {
-      setSelectedIngredients((current) => current.filter((item) => item !== ingredient));
+      setSelectedIngredients((current) =>
+        current.filter((item) => item !== ingredient),
+      );
     }
 
     function clearSavedFilters() {
@@ -587,7 +618,10 @@ export function CookClient({
       setStatus(null);
     }
 
-    async function savePlannedMeal(target: SlotPickerTarget, selectedRecipe: Recipe) {
+    async function savePlannedMeal(
+      target: SlotPickerTarget,
+      selectedRecipe: Recipe,
+    ) {
       setIsPlanningMeal(true);
       setStatus(null);
 
@@ -601,10 +635,10 @@ export function CookClient({
                 date: target.date,
                 mealSlot: target.mealSlot,
                 recipeId: selectedRecipe.id,
-                locked: true
-              }
-            ]
-          })
+                locked: true,
+              },
+            ],
+          }),
         });
         const payload = (await response.json()) as MealPlanSaveResponse;
 
@@ -618,7 +652,9 @@ export function CookClient({
           `${selectedRecipe.title} set for ${slotLabel(target.mealSlot).toLowerCase()}.`,
         );
       } catch (caught) {
-        setStatus(caught instanceof Error ? caught.message : "Could not set this meal.");
+        setStatus(
+          caught instanceof Error ? caught.message : "Could not set this meal.",
+        );
       } finally {
         setIsPlanningMeal(false);
       }
@@ -630,7 +666,9 @@ export function CookClient({
         return;
       }
 
-      const eligibleRecipes = recipes.filter((savedRecipe) => savedRecipe.mealSlots.includes(mealSlot));
+      const eligibleRecipes = recipes.filter((savedRecipe) =>
+        savedRecipe.mealSlots.includes(mealSlot),
+      );
       const pool = eligibleRecipes.length > 0 ? eligibleRecipes : recipes;
       const randomRecipe = pool[Math.floor(Math.random() * pool.length)];
 
@@ -663,19 +701,27 @@ export function CookClient({
       }
 
       try {
-        const response = await fetch(`/api/web-recipes/search?${params.toString()}`);
+        const response = await fetch(
+          `/api/web-recipes/search?${params.toString()}`,
+        );
         const payload = (await response.json()) as {
           error?: string;
           recipes?: WebRecipeSearchResult[];
         };
 
         if (!response.ok || !payload.recipes) {
-          throw new Error(payload.error ?? "Web recipe search could not be completed.");
+          throw new Error(
+            payload.error ?? "Web recipe search could not be completed.",
+          );
         }
 
         setWebResults(payload.recipes);
       } catch (caught) {
-        setStatus(caught instanceof Error ? caught.message : "Web recipe search failed.");
+        setStatus(
+          caught instanceof Error
+            ? caught.message
+            : "Web recipe search failed.",
+        );
       } finally {
         setIsSearchingWeb(false);
       }
@@ -686,7 +732,10 @@ export function CookClient({
 
       try {
         const response = await fetch(`/api/web-recipes/${recipeId}`);
-        const payload = (await response.json()) as { draft?: WebRecipeDraft; error?: string };
+        const payload = (await response.json()) as {
+          draft?: WebRecipeDraft;
+          error?: string;
+        };
 
         if (!response.ok || !payload.draft) {
           throw new Error(payload.error ?? "Web recipe could not be loaded.");
@@ -695,7 +744,11 @@ export function CookClient({
         saveWebCookDraft(webDraftToCookDraft(payload.draft));
         window.location.assign("/cook?draft=web");
       } catch (caught) {
-        setStatus(caught instanceof Error ? caught.message : "Web recipe could not be opened.");
+        setStatus(
+          caught instanceof Error
+            ? caught.message
+            : "Web recipe could not be opened.",
+        );
       }
     }
 
@@ -706,9 +759,10 @@ export function CookClient({
           filteredRecipe.mealSlots.includes(slotPickerTarget.mealSlot),
         )
       : [];
-    const pickerFallbackRecipes = slotPickerTarget && pickerRecipes.length === 0
-      ? filteredRecipes
-      : pickerRecipes;
+    const pickerFallbackRecipes =
+      slotPickerTarget && pickerRecipes.length === 0
+        ? filteredRecipes
+        : pickerRecipes;
 
     return (
       <div className="screen-stack cook-start-screen">
@@ -726,7 +780,10 @@ export function CookClient({
               const plannedRecipe = plannedRecipeBySlot.get(slot.key) ?? null;
 
               return (
-                <article className={`cook-meal-row cook-meal-row-${slot.key}`} key={slot.key}>
+                <article
+                  className={`cook-meal-row cook-meal-row-${slot.key}`}
+                  key={slot.key}
+                >
                   <div className="cook-meal-slot">
                     <span>
                       <i className={`meal-slot-marker meal-bar-${slot.key}`} />
@@ -736,14 +793,17 @@ export function CookClient({
                       <>
                         <strong>{plannedRecipe.title}</strong>
                         <p>
-                          {plannedRecipe.prepMinutes + plannedRecipe.cookMinutes} min ·{" "}
-                          {plannedRecipe.servings} servings
+                          {plannedRecipe.prepMinutes +
+                            plannedRecipe.cookMinutes}{" "}
+                          min · {plannedRecipe.servings} servings
                         </p>
                       </>
                     ) : (
                       <>
                         <strong>No meal planned</strong>
-                        <p>Pick from saved recipes or let RecipAI choose one.</p>
+                        <p>
+                          Pick from saved recipes or let RecipAI choose one.
+                        </p>
                       </>
                     )}
                   </div>
@@ -751,20 +811,27 @@ export function CookClient({
                     {plannedRecipe ? (
                       <>
                         <button
+                          aria-label={`Choose random ${slot.label.toLowerCase()}`}
                           disabled={isPlanningMeal}
                           onClick={() => void planRandomMeal(slot.key)}
                           type="button"
                         >
                           <Dice5 aria-hidden="true" size={16} />
-                          Random
                         </button>
-                        <button onClick={() => openSlotPicker(slot.key)} type="button">
+                        <button
+                          aria-label={`Choose ${slot.label.toLowerCase()}`}
+                          onClick={() => openSlotPicker(slot.key)}
+                          type="button"
+                        >
                           <Search aria-hidden="true" size={16} />
-                          Choose
                         </button>
                         <button
                           className="cook-inline-button cook-inline-button-primary"
-                          onClick={() => window.location.assign(`/cook?recipeId=${plannedRecipe.id}`)}
+                          onClick={() =>
+                            window.location.assign(
+                              `/cook?recipeId=${plannedRecipe.id}`,
+                            )
+                          }
                           type="button"
                         >
                           <ChefHat aria-hidden="true" size={16} />
@@ -774,16 +841,19 @@ export function CookClient({
                     ) : (
                       <>
                         <button
+                          aria-label={`Choose random ${slot.label.toLowerCase()}`}
                           disabled={isPlanningMeal}
                           onClick={() => void planRandomMeal(slot.key)}
                           type="button"
                         >
                           <Dice5 aria-hidden="true" size={16} />
-                          Random
                         </button>
-                        <button onClick={() => openSlotPicker(slot.key)} type="button">
+                        <button
+                          aria-label={`Choose ${slot.label.toLowerCase()}`}
+                          onClick={() => openSlotPicker(slot.key)}
+                          type="button"
+                        >
                           <Search aria-hidden="true" size={16} />
-                          Choose
                         </button>
                       </>
                     )}
@@ -794,10 +864,15 @@ export function CookClient({
           </div>
 
           {slotPickerTarget ? (
-            <section className="cook-slot-picker" aria-label={`${slotLabel(slotPickerTarget.mealSlot)} picker`}>
+            <section
+              className="cook-slot-picker"
+              aria-label={`${slotLabel(slotPickerTarget.mealSlot)} picker`}
+            >
               <div className="cook-picker-heading">
                 <div>
-                  <p className="plan-date">{slotLabel(slotPickerTarget.mealSlot)}</p>
+                  <p className="plan-date">
+                    {slotLabel(slotPickerTarget.mealSlot)}
+                  </p>
                   <h3>Choose a meal for today</h3>
                 </div>
                 <button onClick={() => setSlotPickerTarget(null)} type="button">
@@ -806,7 +881,10 @@ export function CookClient({
                 </button>
               </div>
 
-              <form className="cook-search-form" onSubmit={(event) => event.preventDefault()}>
+              <form
+                className="cook-search-form"
+                onSubmit={(event) => event.preventDefault()}
+              >
                 <Search aria-hidden="true" size={18} />
                 <input
                   aria-label={`Search ${slotLabel(slotPickerTarget.mealSlot)} recipes`}
@@ -818,7 +896,8 @@ export function CookClient({
 
               <div className="cook-search-controls">
                 <p className="cook-picker-count">
-                  {pickerFallbackRecipes.length} saved recipe{pickerFallbackRecipes.length === 1 ? "" : "s"}
+                  {pickerFallbackRecipes.length} saved recipe
+                  {pickerFallbackRecipes.length === 1 ? "" : "s"}
                 </p>
                 <button
                   className="cook-filter-toggle"
@@ -827,12 +906,17 @@ export function CookClient({
                 >
                   <SlidersHorizontal aria-hidden="true" size={16} />
                   Filters
-                  {savedFilterCount > 0 ? <span>{savedFilterCount}</span> : null}
+                  {savedFilterCount > 0 ? (
+                    <span>{savedFilterCount}</span>
+                  ) : null}
                 </button>
               </div>
 
               {areSavedFiltersOpen ? (
-                <div className="cook-filter-panel" aria-label="Saved recipe filters">
+                <div
+                  className="cook-filter-panel"
+                  aria-label="Saved recipe filters"
+                >
                   <button
                     aria-pressed={favoriteOnly}
                     onClick={() => setFavoriteOnly((value) => !value)}
@@ -851,7 +935,10 @@ export function CookClient({
                   </button>
                   <label>
                     Tag
-                    <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
+                    <select
+                      onChange={(event) => setTagFilter(event.target.value)}
+                      value={tagFilter}
+                    >
                       <option value="all">All</option>
                       {availableTags.map((tag) => (
                         <option key={tag} value={tag}>
@@ -862,7 +949,12 @@ export function CookClient({
                   </label>
                   <label>
                     Rating
-                    <select onChange={(event) => setMinRating(Number(event.target.value))} value={minRating}>
+                    <select
+                      onChange={(event) =>
+                        setMinRating(Number(event.target.value))
+                      }
+                      value={minRating}
+                    >
                       <option value={0}>Any</option>
                       <option value={3}>3+</option>
                       <option value={4}>4+</option>
@@ -873,7 +965,9 @@ export function CookClient({
                     Ingredient
                     <select
                       aria-label="Add ingredient filter"
-                      onChange={(event) => addIngredientFilter(event.target.value)}
+                      onChange={(event) =>
+                        addIngredientFilter(event.target.value)
+                      }
                       value="all"
                     >
                       <option value="all">Add</option>
@@ -889,8 +983,13 @@ export function CookClient({
                       Match
                       <select
                         aria-label="Ingredient match threshold"
-                        onChange={(event) => setIngredientThreshold(Number(event.target.value))}
-                        value={Math.min(ingredientThreshold, selectedIngredients.length)}
+                        onChange={(event) =>
+                          setIngredientThreshold(Number(event.target.value))
+                        }
+                        value={Math.min(
+                          ingredientThreshold,
+                          selectedIngredients.length,
+                        )}
                       >
                         {selectedIngredients.map((ingredient, index) => (
                           <option key={ingredient} value={index + 1}>
@@ -901,7 +1000,11 @@ export function CookClient({
                     </label>
                   ) : null}
                   {savedFilterCount > 0 ? (
-                    <button className="cook-clear-filter" onClick={clearSavedFilters} type="button">
+                    <button
+                      className="cook-clear-filter"
+                      onClick={clearSavedFilters}
+                      type="button"
+                    >
                       Clear
                     </button>
                   ) : null}
@@ -909,7 +1012,10 @@ export function CookClient({
               ) : null}
 
               {selectedIngredients.length > 0 ? (
-                <div className="web-selected-ingredients" aria-label="Selected ingredient filters">
+                <div
+                  className="web-selected-ingredients"
+                  aria-label="Selected ingredient filters"
+                >
                   {selectedIngredients.map((ingredient) => (
                     <button
                       aria-label={`Remove ${ingredient}`}
@@ -926,54 +1032,80 @@ export function CookClient({
 
               <div className="cook-picker-results">
                 {pickerFallbackRecipes.length > 0 ? (
-                  pickerFallbackRecipes.slice(0, 8).map(({ ingredientMatchCount, recipe: pickerRecipe }) => {
-                    const isPreferredSlot = pickerRecipe.mealSlots.includes(slotPickerTarget.mealSlot);
+                  pickerFallbackRecipes
+                    .slice(0, 8)
+                    .map(({ ingredientMatchCount, recipe: pickerRecipe }) => {
+                      const isPreferredSlot = pickerRecipe.mealSlots.includes(
+                        slotPickerTarget.mealSlot,
+                      );
 
-                    return (
-                      <article className="cook-result-row" key={pickerRecipe.id}>
-                        {pickerRecipe.imageUrl ? (
-                          <Image
-                            alt=""
-                            height={58}
-                            src={pickerRecipe.imageUrl}
-                            unoptimized
-                            width={58}
-                          />
-                        ) : (
-                          <div className="cook-result-thumb">
-                            <ChefHat aria-hidden="true" size={20} />
-                          </div>
-                        )}
-                        <div className="cook-result-main">
-                          <h3>{pickerRecipe.title}</h3>
-                          <p>{pickerRecipe.summary}</p>
-                          <div className="cook-result-meta">
-                            <span>{pickerRecipe.prepMinutes + pickerRecipe.cookMinutes} min</span>
-                            <span>
-                              <Star aria-hidden="true" fill="currentColor" size={13} />
-                              {pickerRecipe.rating}
-                            </span>
-                            {!isPreferredSlot ? (
-                              <span>Not marked for {slotLabel(slotPickerTarget.mealSlot).toLowerCase()}</span>
-                            ) : null}
-                            {selectedIngredients.length > 0 ? (
-                              <span>
-                                {ingredientMatchCount}/{selectedIngredients.length} ingredients
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <button
-                          className="cook-inline-button cook-inline-button-primary"
-                          disabled={isPlanningMeal}
-                          onClick={() => void savePlannedMeal(slotPickerTarget, pickerRecipe)}
-                          type="button"
+                      return (
+                        <article
+                          className="cook-result-row"
+                          key={pickerRecipe.id}
                         >
-                          Set
-                        </button>
-                      </article>
-                    );
-                  })
+                          {pickerRecipe.imageUrl ? (
+                            <Image
+                              alt=""
+                              height={58}
+                              src={pickerRecipe.imageUrl}
+                              unoptimized
+                              width={58}
+                            />
+                          ) : (
+                            <div className="cook-result-thumb">
+                              <ChefHat aria-hidden="true" size={20} />
+                            </div>
+                          )}
+                          <div className="cook-result-main">
+                            <h3>{pickerRecipe.title}</h3>
+                            <p>{pickerRecipe.summary}</p>
+                            <div className="cook-result-meta">
+                              <span>
+                                {pickerRecipe.prepMinutes +
+                                  pickerRecipe.cookMinutes}{" "}
+                                min
+                              </span>
+                              <span>
+                                <Star
+                                  aria-hidden="true"
+                                  fill="currentColor"
+                                  size={13}
+                                />
+                                {pickerRecipe.rating}
+                              </span>
+                              {!isPreferredSlot ? (
+                                <span>
+                                  Not marked for{" "}
+                                  {slotLabel(
+                                    slotPickerTarget.mealSlot,
+                                  ).toLowerCase()}
+                                </span>
+                              ) : null}
+                              {selectedIngredients.length > 0 ? (
+                                <span>
+                                  {ingredientMatchCount}/
+                                  {selectedIngredients.length} ingredients
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <button
+                            className="cook-inline-button cook-inline-button-primary"
+                            disabled={isPlanningMeal}
+                            onClick={() =>
+                              void savePlannedMeal(
+                                slotPickerTarget,
+                                pickerRecipe,
+                              )
+                            }
+                            type="button"
+                          >
+                            Set
+                          </button>
+                        </article>
+                      );
+                    })
                 ) : (
                   <div className="web-empty-state">
                     <Filter aria-hidden="true" size={28} />
@@ -997,7 +1129,14 @@ export function CookClient({
             <ChefHat aria-hidden="true" size={22} />
           </div>
 
-          <form className="cook-search-form" onSubmit={searchMode === "web" ? searchWeb : (event) => event.preventDefault()}>
+          <form
+            className="cook-search-form"
+            onSubmit={
+              searchMode === "web"
+                ? searchWeb
+                : (event) => event.preventDefault()
+            }
+          >
             <Search aria-hidden="true" size={18} />
             <input
               aria-label="Search saved or web recipes"
@@ -1013,7 +1152,10 @@ export function CookClient({
           </form>
 
           <div className="cook-search-controls">
-            <div className="mode-toggle cook-mode-toggle" aria-label="Recipe source">
+            <div
+              className="mode-toggle cook-mode-toggle"
+              aria-label="Recipe source"
+            >
               <button
                 aria-pressed={searchMode === "saved"}
                 onClick={() => setSearchMode("saved")}
@@ -1040,14 +1182,20 @@ export function CookClient({
             >
               <SlidersHorizontal aria-hidden="true" size={16} />
               Filters
-              {(searchMode === "saved" ? savedFilterCount : webFilterCount) > 0 ? (
-                <span>{searchMode === "saved" ? savedFilterCount : webFilterCount}</span>
+              {(searchMode === "saved" ? savedFilterCount : webFilterCount) >
+              0 ? (
+                <span>
+                  {searchMode === "saved" ? savedFilterCount : webFilterCount}
+                </span>
               ) : null}
             </button>
           </div>
 
           {searchMode === "saved" && areSavedFiltersOpen ? (
-            <div className="cook-filter-panel" aria-label="Saved recipe filters">
+            <div
+              className="cook-filter-panel"
+              aria-label="Saved recipe filters"
+            >
               <button
                 aria-pressed={favoriteOnly}
                 onClick={() => setFavoriteOnly((value) => !value)}
@@ -1066,7 +1214,10 @@ export function CookClient({
               </button>
               <label>
                 Tag
-                <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
+                <select
+                  onChange={(event) => setTagFilter(event.target.value)}
+                  value={tagFilter}
+                >
                   <option value="all">All</option>
                   {availableTags.map((tag) => (
                     <option key={tag} value={tag}>
@@ -1077,7 +1228,10 @@ export function CookClient({
               </label>
               <label>
                 Rating
-                <select onChange={(event) => setMinRating(Number(event.target.value))} value={minRating}>
+                <select
+                  onChange={(event) => setMinRating(Number(event.target.value))}
+                  value={minRating}
+                >
                   <option value={0}>Any</option>
                   <option value={3}>3+</option>
                   <option value={4}>4+</option>
@@ -1104,8 +1258,13 @@ export function CookClient({
                   Match
                   <select
                     aria-label="Ingredient match threshold"
-                    onChange={(event) => setIngredientThreshold(Number(event.target.value))}
-                    value={Math.min(ingredientThreshold, selectedIngredients.length)}
+                    onChange={(event) =>
+                      setIngredientThreshold(Number(event.target.value))
+                    }
+                    value={Math.min(
+                      ingredientThreshold,
+                      selectedIngredients.length,
+                    )}
                   >
                     {selectedIngredients.map((ingredient, index) => (
                       <option key={ingredient} value={index + 1}>
@@ -1116,7 +1275,11 @@ export function CookClient({
                 </label>
               ) : null}
               {savedFilterCount > 0 ? (
-                <button className="cook-clear-filter" onClick={clearSavedFilters} type="button">
+                <button
+                  className="cook-clear-filter"
+                  onClick={clearSavedFilters}
+                  type="button"
+                >
                   Clear
                 </button>
               ) : null}
@@ -1124,7 +1287,10 @@ export function CookClient({
           ) : null}
 
           {searchMode === "saved" && selectedIngredients.length > 0 ? (
-            <div className="web-selected-ingredients" aria-label="Selected ingredient filters">
+            <div
+              className="web-selected-ingredients"
+              aria-label="Selected ingredient filters"
+            >
               {selectedIngredients.map((ingredient) => (
                 <button
                   aria-label={`Remove ${ingredient}`}
@@ -1140,10 +1306,16 @@ export function CookClient({
           ) : null}
 
           {searchMode === "web" && isWebFiltersOpen ? (
-            <div className="cook-filter-panel cook-web-filter-panel" aria-label="Web recipe filters">
+            <div
+              className="cook-filter-panel cook-web-filter-panel"
+              aria-label="Web recipe filters"
+            >
               <label>
                 Category
-                <select onChange={(event) => setWebCategory(event.target.value)} value={webCategory}>
+                <select
+                  onChange={(event) => setWebCategory(event.target.value)}
+                  value={webCategory}
+                >
                   <option value="all">All</option>
                   {webOptions.categories.map((category) => (
                     <option key={category.id} value={category.id}>
@@ -1154,7 +1326,10 @@ export function CookClient({
               </label>
               <label>
                 Area
-                <select onChange={(event) => setWebArea(event.target.value)} value={webArea}>
+                <select
+                  onChange={(event) => setWebArea(event.target.value)}
+                  value={webArea}
+                >
                   <option value="all">All</option>
                   {webOptions.areas.map((area) => (
                     <option key={area.id} value={area.id}>
@@ -1165,7 +1340,10 @@ export function CookClient({
               </label>
               <label>
                 Ingredient
-                <select onChange={(event) => setWebIngredient(event.target.value)} value={webIngredient}>
+                <select
+                  onChange={(event) => setWebIngredient(event.target.value)}
+                  value={webIngredient}
+                >
                   <option value="all">All</option>
                   {webOptions.ingredients.map((ingredient) => (
                     <option key={ingredient.id} value={ingredient.id}>
@@ -1193,51 +1371,68 @@ export function CookClient({
           {searchMode === "saved" ? (
             <div className="cook-result-list">
               {hasSavedResults ? (
-                filteredRecipes.slice(0, 12).map(({ ingredientMatchCount, recipe: savedRecipe }) => (
-                  <article className="cook-result-row" key={savedRecipe.id}>
-                    {savedRecipe.imageUrl ? (
-                      <Image
-                        alt=""
-                        height={58}
-                        src={savedRecipe.imageUrl}
-                        unoptimized
-                        width={58}
-                      />
-                    ) : (
-                      <div className="cook-result-thumb">
-                        <ChefHat aria-hidden="true" size={20} />
-                      </div>
-                    )}
-                    <div className="cook-result-main">
-                      <h3>{savedRecipe.title}</h3>
-                      <p>{savedRecipe.summary}</p>
-                      <div className="cook-result-meta">
-                        <span>{savedRecipe.prepMinutes + savedRecipe.cookMinutes} min</span>
-                        <span>
-                          <Star aria-hidden="true" fill="currentColor" size={13} />
-                          {savedRecipe.rating}
-                        </span>
-                        {selectedIngredients.length > 0 ? (
+                filteredRecipes
+                  .slice(0, 12)
+                  .map(({ ingredientMatchCount, recipe: savedRecipe }) => (
+                    <article className="cook-result-row" key={savedRecipe.id}>
+                      {savedRecipe.imageUrl ? (
+                        <Image
+                          alt=""
+                          height={58}
+                          src={savedRecipe.imageUrl}
+                          unoptimized
+                          width={58}
+                        />
+                      ) : (
+                        <div className="cook-result-thumb">
+                          <ChefHat aria-hidden="true" size={20} />
+                        </div>
+                      )}
+                      <div className="cook-result-main">
+                        <h3>{savedRecipe.title}</h3>
+                        <p>{savedRecipe.summary}</p>
+                        <div className="cook-result-meta">
                           <span>
-                            {ingredientMatchCount}/{selectedIngredients.length} ingredients
+                            {savedRecipe.prepMinutes + savedRecipe.cookMinutes}{" "}
+                            min
                           </span>
-                        ) : null}
+                          <span>
+                            <Star
+                              aria-hidden="true"
+                              fill="currentColor"
+                              size={13}
+                            />
+                            {savedRecipe.rating}
+                          </span>
+                          {selectedIngredients.length > 0 ? (
+                            <span>
+                              {ingredientMatchCount}/
+                              {selectedIngredients.length} ingredients
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    <button
-                      className="cook-inline-button cook-inline-button-primary"
-                      onClick={() => window.location.assign(`/cook?recipeId=${savedRecipe.id}`)}
-                      type="button"
-                    >
-                      Cook
-                    </button>
-                  </article>
-                ))
+                      <button
+                        className="cook-inline-button cook-inline-button-primary"
+                        onClick={() =>
+                          window.location.assign(
+                            `/cook?recipeId=${savedRecipe.id}`,
+                          )
+                        }
+                        type="button"
+                      >
+                        Cook
+                      </button>
+                    </article>
+                  ))
               ) : (
                 <div className="web-empty-state">
                   <Filter aria-hidden="true" size={28} />
                   <h3>No saved recipes found</h3>
-                  <p>Try a different search, clear filters, or add a recipe to your library.</p>
+                  <p>
+                    Try a different search, clear filters, or add a recipe to
+                    your library.
+                  </p>
                 </div>
               )}
             </div>
@@ -1261,7 +1456,11 @@ export function CookClient({
                     )}
                     <div className="cook-result-main">
                       <h3>{webRecipe.title}</h3>
-                      <p>{[webRecipe.area, webRecipe.category].filter(Boolean).join(" · ") || "Web recipe"}</p>
+                      <p>
+                        {[webRecipe.area, webRecipe.category]
+                          .filter(Boolean)
+                          .join(" · ") || "Web recipe"}
+                      </p>
                       <div className="web-tag-row">
                         {webRecipe.tags.slice(0, 3).map((tag) => (
                           <span key={tag}>{tag}</span>
@@ -1281,7 +1480,10 @@ export function CookClient({
                 <div className="web-empty-state">
                   <Globe2 aria-hidden="true" size={28} />
                   <h3>Search web recipes</h3>
-                  <p>Enter a recipe idea, or open filters and search by category, area, or ingredient.</p>
+                  <p>
+                    Enter a recipe idea, or open filters and search by category,
+                    area, or ingredient.
+                  </p>
                 </div>
               )}
             </div>
@@ -1337,7 +1539,7 @@ export function CookClient({
   function startTimer(stepId: string, minutes: number) {
     setTimerSeconds((current) => ({
       ...current,
-      [stepId]: current[stepId] ?? minutes * 60
+      [stepId]: current[stepId] ?? minutes * 60,
     }));
     if (!floatingTimerId) {
       setTimerPosition(defaultTimerPosition(floatingTimerMode));
@@ -1380,7 +1582,7 @@ export function CookClient({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      wasDragged: false
+      wasDragged: false,
     };
   }
 
@@ -1431,7 +1633,9 @@ export function CookClient({
       return;
     }
 
-    const response = await fetch(`/api/recipes/${recipeId}/cooked`, { method: "POST" });
+    const response = await fetch(`/api/recipes/${recipeId}/cooked`, {
+      method: "POST",
+    });
     const payload = (await response.json()) as { error?: string };
 
     if (!response.ok) {
@@ -1464,11 +1668,19 @@ export function CookClient({
 
       <section className="cook-toolbar">
         <div className="serving-stepper" aria-label="Serving scaler">
-          <button aria-label="Decrease servings" onClick={() => adjustServings(-1)} type="button">
+          <button
+            aria-label="Decrease servings"
+            onClick={() => adjustServings(-1)}
+            type="button"
+          >
             <Minus aria-hidden="true" size={16} />
           </button>
           <strong>{servings}</strong>
-          <button aria-label="Increase servings" onClick={() => adjustServings(1)} type="button">
+          <button
+            aria-label="Increase servings"
+            onClick={() => adjustServings(1)}
+            type="button"
+          >
             <Plus aria-hidden="true" size={16} />
           </button>
         </div>
@@ -1502,17 +1714,22 @@ export function CookClient({
               <button
                 aria-pressed={checked}
                 className={
-                  checked ? "cook-ingredient cook-ingredient-checked" : "cook-ingredient"
+                  checked
+                    ? "cook-ingredient cook-ingredient-checked"
+                    : "cook-ingredient"
                 }
                 data-testid={`cook-ingredient-${ingredient.id}`}
                 key={ingredient.id}
                 onClick={() => toggleIngredient(ingredient.id)}
                 type="button"
               >
-                <span>{checked ? <Check aria-hidden="true" size={18} /> : null}</span>
+                <span>
+                  {checked ? <Check aria-hidden="true" size={18} /> : null}
+                </span>
                 <strong>
                   {formatQuantity(ingredient.quantity, scale)}
-                  {ingredient.unit ? ` ${ingredient.unit}` : ""} {ingredient.name}
+                  {ingredient.unit ? ` ${ingredient.unit}` : ""}{" "}
+                  {ingredient.name}
                 </strong>
                 {ingredient.note ? <em>{ingredient.note}</em> : null}
               </button>
@@ -1527,7 +1744,11 @@ export function CookClient({
             <p className="plan-date">
               Step {activeStepIndex + 1} of {recipe.steps.length}
             </p>
-            <h3>{activeStep?.timerMinutes ? `${activeStep.timerMinutes} min timer` : "No timer"}</h3>
+            <h3>
+              {activeStep?.timerMinutes
+                ? `${activeStep.timerMinutes} min timer`
+                : "No timer"}
+            </h3>
           </div>
         </div>
 
@@ -1543,7 +1764,9 @@ export function CookClient({
                 </Button>
               ) : (
                 <Button
-                  onClick={() => startTimer(activeStep.id, activeStep.timerMinutes!)}
+                  onClick={() =>
+                    startTimer(activeStep.id, activeStep.timerMinutes!)
+                  }
                   type="button"
                 >
                   Start
@@ -1552,7 +1775,9 @@ export function CookClient({
               <button
                 aria-label="Reset timer"
                 className="icon-toggle"
-                onClick={() => resetTimer(activeStep.id, activeStep.timerMinutes!)}
+                onClick={() =>
+                  resetTimer(activeStep.id, activeStep.timerMinutes!)
+                }
                 type="button"
               >
                 <TimerReset aria-hidden="true" size={17} />
@@ -1564,7 +1789,9 @@ export function CookClient({
         <div className="cook-step-actions">
           <Button
             disabled={activeStepIndex === 0}
-            onClick={() => setActiveStepIndex((index) => Math.max(0, index - 1))}
+            onClick={() =>
+              setActiveStepIndex((index) => Math.max(0, index - 1))
+            }
             type="button"
             variant="secondary"
           >
@@ -1574,7 +1801,9 @@ export function CookClient({
           <Button
             disabled={activeStepIndex === recipe.steps.length - 1}
             onClick={() =>
-              setActiveStepIndex((index) => Math.min(recipe.steps.length - 1, index + 1))
+              setActiveStepIndex((index) =>
+                Math.min(recipe.steps.length - 1, index + 1),
+              )
             }
             type="button"
           >
@@ -1596,7 +1825,11 @@ export function CookClient({
         </label>
       </section>
 
-      <Button className="full-width cook-complete-button" onClick={markCooked} type="button">
+      <Button
+        className="full-width cook-complete-button"
+        onClick={markCooked}
+        type="button"
+      >
         <ChefHat aria-hidden="true" size={18} />
         Mark cooked
       </Button>
@@ -1625,21 +1858,26 @@ export function CookClient({
             width:
               floatingTimerMode === "full"
                 ? `min(${FULL_TIMER_MAX_WIDTH}px, calc(100vw - ${FLOATING_TIMER_MARGIN * 2}px))`
-                : COMPACT_TIMER_SIZE
+                : COMPACT_TIMER_SIZE,
           }}
           tabIndex={0}
         >
           {floatingTimerMode === "compact" ? (
             <div className="floating-timer-circle">
               <svg aria-hidden="true" viewBox="0 0 80 80">
-                <circle className="floating-timer-track" cx="40" cy="40" r="34" />
+                <circle
+                  className="floating-timer-track"
+                  cx="40"
+                  cy="40"
+                  r="34"
+                />
                 <circle
                   className="floating-timer-progress"
                   cx="40"
                   cy="40"
                   r="34"
                   style={{
-                    strokeDashoffset: 213.63 * (1 - floatingTimerProgress)
+                    strokeDashoffset: 213.63 * (1 - floatingTimerProgress),
                   }}
                 />
               </svg>
@@ -1653,7 +1891,11 @@ export function CookClient({
                 <strong>{formatTimer(floatingTimerRemainingSeconds)}</strong>
               </div>
               <div className="floating-timer-bar" aria-hidden="true">
-                <span style={{ width: `${Math.max(0, Math.min(100, floatingTimerProgress * 100))}%` }} />
+                <span
+                  style={{
+                    width: `${Math.max(0, Math.min(100, floatingTimerProgress * 100))}%`,
+                  }}
+                />
               </div>
               <button
                 onClick={(event) => {
