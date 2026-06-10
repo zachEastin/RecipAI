@@ -1,0 +1,7 @@
+services:
+  recipes:
+    build: .
+    container_name: recipai
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
