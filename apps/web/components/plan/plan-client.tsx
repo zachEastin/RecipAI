@@ -14,11 +14,16 @@ import {
   ShoppingBasket,
   Trash2,
   Utensils,
-  X
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import type { Recipe } from "@recipai/recipes";
 import type { ShoppingList, ShoppingListCoverage } from "@recipai/db";
@@ -88,7 +93,7 @@ type ShoppingListPrompt = {
 const MEAL_SLOTS: Array<{ key: MealSlot; label: string }> = [
   { key: "breakfast", label: "Breakfast" },
   { key: "lunch", label: "Lunch" },
-  { key: "dinner", label: "Dinner" }
+  { key: "dinner", label: "Dinner" },
 ];
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -119,7 +124,11 @@ function dateRangeInclusive(startDate: string, endDate: string): string[] {
   const start = dateFromIso(startDate);
   const end = dateFromIso(endDate);
 
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    start > end
+  ) {
     return [];
   }
 
@@ -157,14 +166,14 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     month: "short",
-    day: "numeric"
+    day: "numeric",
   }).format(dateFromIso(value));
 }
 
 function formatMonth(value: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
-    year: "numeric"
+    year: "numeric",
   }).format(value);
 }
 
@@ -173,7 +182,7 @@ function searchableRecipeText(recipe: Recipe): string {
     recipe.title,
     recipe.summary,
     recipe.tags.join(" "),
-    recipe.ingredients.map((ingredient) => ingredient.name).join(" ")
+    recipe.ingredients.map((ingredient) => ingredient.name).join(" "),
   ]
     .join(" ")
     .toLowerCase();
@@ -209,7 +218,7 @@ export function PlanClient({
   startDate,
   endDate,
   initialEntries,
-  recipes
+  recipes,
 }: {
   startDate: string;
   endDate: string;
@@ -228,7 +237,7 @@ export function PlanClient({
         date: entry.date,
         mealSlot: entry.mealSlot,
         recipeId: entry.recipeId!,
-        locked: entry.locked
+        locked: entry.locked,
       })),
   );
   const [recipeList, setRecipeList] = useState(recipes);
@@ -237,17 +246,22 @@ export function PlanClient({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [reviewPlan, setReviewPlan] = useState<ReviewPlanState | null>(null);
-  const [shoppingListPrompt, setShoppingListPrompt] = useState<ShoppingListPrompt | null>(null);
+  const [shoppingListPrompt, setShoppingListPrompt] =
+    useState<ShoppingListPrompt | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PlanTarget | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [generateRange, setGenerateRange] = useState({ startDate, endDate });
-  const [generateSelectedDates, setGenerateSelectedDates] = useState<string[] | null>(null);
-  const [selectedSlots, setSelectedSlots] = useState<Record<MealSlot, boolean>>({
-    breakfast: true,
-    lunch: true,
-    dinner: true
-  });
+  const [generateSelectedDates, setGenerateSelectedDates] = useState<
+    string[] | null
+  >(null);
+  const [selectedSlots, setSelectedSlots] = useState<Record<MealSlot, boolean>>(
+    {
+      breakfast: true,
+      lunch: true,
+      dinner: true,
+    },
+  );
   const [preserveLocked, setPreserveLocked] = useState(true);
   const [fillEmptyOnly, setFillEmptyOnly] = useState(false);
   const [avoidRepeats, setAvoidRepeats] = useState(true);
@@ -262,19 +276,27 @@ export function PlanClient({
     [recipeList],
   );
   const entryByKey = useMemo(
-    () => new Map(entries.map((entry) => [entryKey(entry.date, entry.mealSlot), entry])),
+    () =>
+      new Map(
+        entries.map((entry) => [entryKey(entry.date, entry.mealSlot), entry]),
+      ),
     [entries],
   );
   const pickerEntry = pickerTarget
-    ? entryByKey.get(entryKey(pickerTarget.date, pickerTarget.mealSlot)) ?? null
+    ? (entryByKey.get(entryKey(pickerTarget.date, pickerTarget.mealSlot)) ??
+      null)
     : null;
-  const pickerRecipe = pickerEntry ? recipeById.get(pickerEntry.recipeId) ?? null : null;
+  const pickerRecipe = pickerEntry
+    ? (recipeById.get(pickerEntry.recipeId) ?? null)
+    : null;
   const hasRecipeForSlot = useMemo(
     () =>
       Object.fromEntries(
         MEAL_SLOTS.map((slot) => [
           slot.key,
-          recipeList.some((recipe) => isRecipeEligibleForSlot(recipe, slot.key))
+          recipeList.some((recipe) =>
+            isRecipeEligibleForSlot(recipe, slot.key),
+          ),
         ]),
       ) as Record<MealSlot, boolean>,
     [recipeList],
@@ -298,27 +320,38 @@ export function PlanClient({
   }, [pickerQuery, recipeList]);
 
   const calendarDays = useMemo(() => {
-    const firstOfMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1, 12);
+    const firstOfMonth = new Date(
+      monthAnchor.getFullYear(),
+      monthAnchor.getMonth(),
+      1,
+      12,
+    );
     const gridStart = addDays(firstOfMonth, -firstOfMonth.getDay());
     return Array.from({ length: 42 }, (_, index) => {
       const date = addDays(gridStart, index);
       return {
         date,
         iso: toIsoDate(date),
-        isCurrentMonth: date.getMonth() === monthAnchor.getMonth()
+        isCurrentMonth: date.getMonth() === monthAnchor.getMonth(),
       };
     });
   }, [monthAnchor]);
-  const selectedDateSet = useMemo(() => new Set(selectedDates), [selectedDates]);
-  const generationDates = dateRangeInclusive(generateRange.startDate, generateRange.endDate);
+  const selectedDateSet = useMemo(
+    () => new Set(selectedDates),
+    [selectedDates],
+  );
+  const generationDates = dateRangeInclusive(
+    generateRange.startDate,
+    generateRange.endDate,
+  );
   const activeGenerationDates = generateSelectedDates ?? generationDates;
   const generationSlots = MEAL_SLOTS.filter(
     (slot) => selectedSlots[slot.key] && hasRecipeForSlot[slot.key],
-  ).map(
-    (slot) => slot.key,
-  );
-  const generationSlotCount = activeGenerationDates.length * generationSlots.length;
-  const selectedGenerationSlotCount = selectedDates.length * generationSlots.length;
+  ).map((slot) => slot.key);
+  const generationSlotCount =
+    activeGenerationDates.length * generationSlots.length;
+  const selectedGenerationSlotCount =
+    selectedDates.length * generationSlots.length;
   const reviewDateSet = useMemo(
     () => new Set(reviewPlan?.dates ?? []),
     [reviewPlan],
@@ -330,7 +363,8 @@ export function PlanClient({
   const reviewEntries = useMemo(
     () =>
       entries.filter(
-        (entry) => reviewDateSet.has(entry.date) && reviewSlotSet.has(entry.mealSlot),
+        (entry) =>
+          reviewDateSet.has(entry.date) && reviewSlotSet.has(entry.mealSlot),
       ),
     [entries, reviewDateSet, reviewSlotSet],
   );
@@ -366,7 +400,7 @@ export function PlanClient({
     range,
     closeModal = false,
     openReview = false,
-    preserveReviewBaseline = false
+    preserveReviewBaseline = false,
   }: {
     mealSlots: MealSlot[];
     rerollTargets?: PlanTarget[];
@@ -400,8 +434,8 @@ export function PlanClient({
           avoidRepeats,
           avoidRecentMeals,
           preferQuickWeekdays,
-          addVariety
-        })
+          addVariety,
+        }),
       });
       const payload = (await response.json()) as GenerateResponse;
 
@@ -409,7 +443,9 @@ export function PlanClient({
         throw new Error(payload.error ?? "Could not generate a meal plan.");
       }
 
-      const reviewDates = dates ?? (range ? dateRangeInclusive(range.startDate, range.endDate) : []);
+      const reviewDates =
+        dates ??
+        (range ? dateRangeInclusive(range.startDate, range.endDate) : []);
       const baselineEntries = preserveReviewBaseline
         ? reviewPlan?.baselineEntries
         : entries;
@@ -421,14 +457,18 @@ export function PlanClient({
         setReviewPlan({
           baselineEntries,
           dates: sortedDates(reviewDates),
-          mealSlots
+          mealSlots,
         });
       }
       if (closeModal) {
         setIsGenerateOpen(false);
       }
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not generate a meal plan.");
+      setStatus(
+        caught instanceof Error
+          ? caught.message
+          : "Could not generate a meal plan.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -442,7 +482,7 @@ export function PlanClient({
       const response = await fetch("/api/meal-plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entries })
+        body: JSON.stringify({ entries }),
       });
       const payload = (await response.json()) as SaveResponse;
 
@@ -457,13 +497,17 @@ export function PlanClient({
             date: entry.date,
             mealSlot: entry.mealSlot,
             recipeId: entry.recipeId!,
-            locked: entry.locked
+            locked: entry.locked,
           })),
       );
       setReviewPlan(null);
       setStatus("Meal plan saved.");
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not save the meal plan.");
+      setStatus(
+        caught instanceof Error
+          ? caught.message
+          : "Could not save the meal plan.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -477,7 +521,7 @@ export function PlanClient({
       const response = await fetch("/api/meal-plans/clear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(generateRange)
+        body: JSON.stringify(generateRange),
       });
 
       if (!response.ok) {
@@ -485,11 +529,17 @@ export function PlanClient({
       }
 
       const clearDates = new Set(generationDates);
-      setEntries((current) => current.filter((entry) => !clearDates.has(entry.date)));
+      setEntries((current) =>
+        current.filter((entry) => !clearDates.has(entry.date)),
+      );
       setStatus("Cleared the selected range.");
       setIsGenerateOpen(false);
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not clear this date range.");
+      setStatus(
+        caught instanceof Error
+          ? caught.message
+          : "Could not clear this date range.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -503,7 +553,7 @@ export function PlanClient({
       const response = await fetch("/api/meal-plans/clear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, mealSlot })
+        body: JSON.stringify({ date, mealSlot }),
       });
 
       if (!response.ok) {
@@ -511,11 +561,15 @@ export function PlanClient({
       }
 
       setEntries((current) =>
-        current.filter((entry) => entry.date !== date || entry.mealSlot !== mealSlot),
+        current.filter(
+          (entry) => entry.date !== date || entry.mealSlot !== mealSlot,
+        ),
       );
       setStatus(`${slotLabel(mealSlot)} cleared for ${formatDate(date)}.`);
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not clear this meal.");
+      setStatus(
+        caught instanceof Error ? caught.message : "Could not clear this meal.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -525,7 +579,10 @@ export function PlanClient({
     return MEAL_SLOTS.find((slot) => slot.key === mealSlot)?.label ?? mealSlot;
   }
 
-  function isRecipeEligibleForSlot(recipe: Recipe, mealSlot: MealSlot): boolean {
+  function isRecipeEligibleForSlot(
+    recipe: Recipe,
+    mealSlot: MealSlot,
+  ): boolean {
     return recipe.mealSlots.includes(mealSlot);
   }
 
@@ -556,12 +613,16 @@ export function PlanClient({
         date: target.date,
         mealSlot: target.mealSlot,
         recipeId: recipe.id,
-        locked: true
+        locked: true,
       };
-      const hasEntry = current.some((entry) => entryKey(entry.date, entry.mealSlot) === key);
+      const hasEntry = current.some(
+        (entry) => entryKey(entry.date, entry.mealSlot) === key,
+      );
 
       return hasEntry
-        ? current.map((entry) => (entryKey(entry.date, entry.mealSlot) === key ? nextEntry : entry))
+        ? current.map((entry) =>
+            entryKey(entry.date, entry.mealSlot) === key ? nextEntry : entry,
+          )
         : [...current, nextEntry].sort((a, b) =>
             a.date === b.date
               ? MEAL_SLOTS.findIndex((slot) => slot.key === a.mealSlot) -
@@ -569,13 +630,16 @@ export function PlanClient({
               : a.date.localeCompare(b.date),
           );
     });
-    setStatus(`${recipe.title} picked for ${slotLabel(target.mealSlot).toLowerCase()}.`);
+    setStatus(
+      `${recipe.title} picked for ${slotLabel(target.mealSlot).toLowerCase()}.`,
+    );
     closePicker();
   }
 
   function moveMonth(delta: number) {
     setMonthAnchor(
-      (current) => new Date(current.getFullYear(), current.getMonth() + delta, 1, 12),
+      (current) =>
+        new Date(current.getFullYear(), current.getMonth() + delta, 1, 12),
     );
   }
 
@@ -603,12 +667,20 @@ export function PlanClient({
     });
   }
 
-  function dateFromPointer(event: Pick<ReactPointerEvent, "clientX" | "clientY">): string | null {
+  function dateFromPointer(
+    event: Pick<ReactPointerEvent, "clientX" | "clientY">,
+  ): string | null {
     const element = document.elementFromPoint(event.clientX, event.clientY);
-    return element?.closest<HTMLElement>("[data-plan-date]")?.dataset.planDate ?? null;
+    return (
+      element?.closest<HTMLElement>("[data-plan-date]")?.dataset.planDate ??
+      null
+    );
   }
 
-  function beginDaySelection(date: string, event: ReactPointerEvent<HTMLButtonElement>) {
+  function beginDaySelection(
+    date: string,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
     if (event.pointerType === "mouse" && event.button !== 0) {
       return;
     }
@@ -619,7 +691,7 @@ export function PlanClient({
       lastDate: date,
       pointerId: event.pointerId,
       startX: event.clientX,
-      startY: event.clientY
+      startY: event.clientY,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -631,7 +703,10 @@ export function PlanClient({
       return;
     }
 
-    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    const distance = Math.hypot(
+      event.clientX - drag.startX,
+      event.clientY - drag.startY,
+    );
     if (!drag.hasDragged && distance < DAY_SELECTION_DRAG_THRESHOLD) {
       return;
     }
@@ -671,7 +746,7 @@ export function PlanClient({
     setGenerateSelectedDates(selectedDates);
     setGenerateRange({
       startDate: selectedDates[0]!,
-      endDate: selectedDates.at(-1)!
+      endDate: selectedDates.at(-1)!,
     });
     setIsGenerateOpen(true);
   }
@@ -696,15 +771,17 @@ export function PlanClient({
       mealSlots: reviewPlan.mealSlots,
       rerollTargets: reviewUnlockedTargets,
       dates: reviewPlan.dates,
-      preserveReviewBaseline: true
+      preserveReviewBaseline: true,
     });
   }
 
-  async function postSelectedShoppingList(mode: "preview" | "create" | "override" | "add-missing") {
+  async function postSelectedShoppingList(
+    mode: "preview" | "create" | "override" | "add-missing",
+  ) {
     const response = await fetch("/api/shopping-lists/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dates: selectedDates, mode })
+      body: JSON.stringify({ dates: selectedDates, mode }),
     });
     const payload = (await response.json()) as ShoppingListResponse;
 
@@ -729,7 +806,7 @@ export function PlanClient({
       if (preview.activeList && preview.coverage) {
         setShoppingListPrompt({
           activeList: preview.activeList,
-          coverage: preview.coverage
+          coverage: preview.coverage,
         });
         return;
       }
@@ -745,7 +822,11 @@ export function PlanClient({
           : "Created an empty shopping list. Add planned meals, then create it again.",
       );
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not create a shopping list.");
+      setStatus(
+        caught instanceof Error
+          ? caught.message
+          : "Could not create a shopping list.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -764,7 +845,9 @@ export function PlanClient({
 
       setShoppingListPrompt(null);
       if (mode === "override") {
-        setStatus("Replaced the active shopping list with selected-day ingredients.");
+        setStatus(
+          "Replaced the active shopping list with selected-day ingredients.",
+        );
       } else {
         const addedCount = payload.coverage?.missingItems.length ?? 0;
         setStatus(
@@ -774,7 +857,11 @@ export function PlanClient({
         );
       }
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not update the shopping list.");
+      setStatus(
+        caught instanceof Error
+          ? caught.message
+          : "Could not update the shopping list.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -816,10 +903,18 @@ export function PlanClient({
             <Sparkles aria-hidden="true" size={17} />
             Generate
           </Button>
-          <Button disabled={isBusy || entries.length === 0} onClick={() => void save()} variant="secondary">
+          <Button
+            disabled={isBusy || entries.length === 0}
+            onClick={() => void save()}
+            variant="secondary"
+          >
             Save plan
           </Button>
-          <button className="plan-today-button" onClick={jumpToToday} type="button">
+          <button
+            className="plan-today-button"
+            onClick={jumpToToday}
+            type="button"
+          >
             Today
           </button>
         </div>
@@ -847,7 +942,7 @@ export function PlanClient({
           {calendarDays.map((day) => {
             const dayEntries = MEAL_SLOTS.map((slot) => ({
               slot: slot.key,
-              entry: entryByKey.get(entryKey(day.iso, slot.key)) ?? null
+              entry: entryByKey.get(entryKey(day.iso, slot.key)) ?? null,
             }));
             const isSelected = selectedDateSet.has(day.iso);
             const isDayPlanOpen = selectedDate === day.iso;
@@ -862,7 +957,7 @@ export function PlanClient({
                   day.isCurrentMonth ? "" : "meal-calendar-day-muted",
                   day.iso === today ? "meal-calendar-day-today" : "",
                   isSelected ? "meal-calendar-day-batch-selected" : "",
-                  isDayPlanOpen ? "meal-calendar-day-selected" : ""
+                  isDayPlanOpen ? "meal-calendar-day-selected" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -900,26 +995,26 @@ export function PlanClient({
             );
           })}
         </div>
-        <div className="plan-selection-bar" role="region" aria-label="Selected planning days">
-          <div>
-            {selectedDates.length > 0 ? (
-              <>
-                <strong>
-                  {selectedDates.length} {selectedDates.length === 1 ? "day" : "days"} selected
-                </strong>
-                <span>{describeSelectedDates(selectedDates)}</span>
-              </>
-            ) : (
-              <>
-                <strong>Select planning days</strong>
-                <span>Click a day to view meals. Drag across days to select a range.</span>
-              </>
-            )}
-          </div>
-          {selectedDates.length > 0 ? (
+        {selectedDates.length > 0 ? (
+          <div
+            className="plan-selection-bar"
+            role="region"
+            aria-label="Selected planning days"
+          >
+            <div>
+              <strong>
+                {selectedDates.length}{" "}
+                {selectedDates.length === 1 ? "day" : "days"} selected
+              </strong>
+              <span>{describeSelectedDates(selectedDates)}</span>
+            </div>
             <div className="plan-selection-actions">
               <Button
-                disabled={isBusy || recipeList.length === 0 || selectedGenerationSlotCount === 0}
+                disabled={
+                  isBusy ||
+                  recipeList.length === 0 ||
+                  selectedGenerationSlotCount === 0
+                }
                 onClick={openGenerateForSelectedDates}
               >
                 <Sparkles aria-hidden="true" size={17} />
@@ -941,8 +1036,8 @@ export function PlanClient({
                 Clear
               </button>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         {status ? <p className="status-text">{status}</p> : null}
       </section>
 
@@ -962,7 +1057,8 @@ export function PlanClient({
             <div className="recipe-picker-header plan-review-header">
               <div>
                 <p className="plan-date">
-                  {reviewPlan.dates.length} {reviewPlan.dates.length === 1 ? "day" : "days"} ·{" "}
+                  {reviewPlan.dates.length}{" "}
+                  {reviewPlan.dates.length === 1 ? "day" : "days"} ·{" "}
                   {reviewEntries.length} meals
                 </p>
                 <h2 id="plan-review-title">Review generated plan</h2>
@@ -984,8 +1080,11 @@ export function PlanClient({
                   <h3>{formatDate(date)}</h3>
                   <div className="plan-review-meals">
                     {reviewPlan.mealSlots.map((mealSlot) => {
-                      const entry = entryByKey.get(entryKey(date, mealSlot)) ?? null;
-                      const recipe = entry ? recipeById.get(entry.recipeId) ?? null : null;
+                      const entry =
+                        entryByKey.get(entryKey(date, mealSlot)) ?? null;
+                      const recipe = entry
+                        ? (recipeById.get(entry.recipeId) ?? null)
+                        : null;
                       const isLocked = entry?.locked ?? false;
 
                       return (
@@ -997,7 +1096,9 @@ export function PlanClient({
                           }
                           key={`${date}-${mealSlot}`}
                         >
-                          <span className={`meal-slot-marker meal-bar-${mealSlot}`} />
+                          <span
+                            className={`meal-slot-marker meal-bar-${mealSlot}`}
+                          />
                           {recipe?.imageUrl ? (
                             <Image
                               alt=""
@@ -1008,7 +1109,9 @@ export function PlanClient({
                               width={58}
                             />
                           ) : (
-                            <span className={`plan-review-thumbnail plan-review-thumbnail-empty meal-bar-${mealSlot}`}>
+                            <span
+                              className={`plan-review-thumbnail plan-review-thumbnail-empty meal-bar-${mealSlot}`}
+                            >
                               {recipe?.title.charAt(0) ?? "?"}
                             </span>
                           )}
@@ -1028,7 +1131,11 @@ export function PlanClient({
                                   ? `Unlock ${slotLabel(mealSlot)} for ${formatDate(date)}`
                                   : `Lock ${slotLabel(mealSlot)} for ${formatDate(date)}`
                               }
-                              className={isLocked ? "icon-toggle icon-toggle-active" : "icon-toggle"}
+                              className={
+                                isLocked
+                                  ? "icon-toggle icon-toggle-active"
+                                  : "icon-toggle"
+                              }
                               disabled={!entry}
                               onClick={() => toggleLock(date, mealSlot)}
                               type="button"
@@ -1042,13 +1149,17 @@ export function PlanClient({
                             <button
                               aria-label={`Regenerate ${slotLabel(mealSlot)} for ${formatDate(date)}`}
                               className="icon-toggle"
-                              disabled={isBusy || isLocked || !hasRecipeForSlot[mealSlot]}
+                              disabled={
+                                isBusy ||
+                                isLocked ||
+                                !hasRecipeForSlot[mealSlot]
+                              }
                               onClick={() =>
                                 void generate({
                                   mealSlots: [mealSlot],
                                   rerollTargets: [{ date, mealSlot }],
                                   dates: [date],
-                                  preserveReviewBaseline: true
+                                  preserveReviewBaseline: true,
                                 })
                               }
                               type="button"
@@ -1072,7 +1183,11 @@ export function PlanClient({
             </div>
 
             <div className="plan-review-footer">
-              <button className="plan-today-button" onClick={cancelReviewPlan} type="button">
+              <button
+                className="plan-today-button"
+                onClick={cancelReviewPlan}
+                type="button"
+              >
                 Cancel
               </button>
               <Button
@@ -1135,10 +1250,12 @@ export function PlanClient({
                 {shoppingListPrompt.coverage.totalItems === 0
                   ? "No selected-day ingredients to add."
                   : shoppingListPrompt.coverage.missingItems.length === 0
-                  ? "Selected ingredients are already covered."
-                  : `${shoppingListPrompt.coverage.missingItems.length} missing ${
-                      shoppingListPrompt.coverage.missingItems.length === 1 ? "item" : "items"
-                    } can be added.`}
+                    ? "Selected ingredients are already covered."
+                    : `${shoppingListPrompt.coverage.missingItems.length} missing ${
+                        shoppingListPrompt.coverage.missingItems.length === 1
+                          ? "item"
+                          : "items"
+                      } can be added.`}
               </span>
             </div>
 
@@ -1151,7 +1268,10 @@ export function PlanClient({
                 Override list
               </Button>
               <Button
-                disabled={isBusy || shoppingListPrompt.coverage.missingItems.length === 0}
+                disabled={
+                  isBusy ||
+                  shoppingListPrompt.coverage.missingItems.length === 0
+                }
                 onClick={() => void resolveShoppingListPrompt("add-missing")}
                 type="button"
                 variant="secondary"
@@ -1201,19 +1321,24 @@ export function PlanClient({
             <div className="day-meal-list">
               {MEAL_SLOTS.map((slot) => {
                 const entry = selectedEntry(slot.key);
-                const recipe = entry ? recipeById.get(entry.recipeId) ?? null : null;
+                const recipe = entry
+                  ? (recipeById.get(entry.recipeId) ?? null)
+                  : null;
                 const isLocked = entry?.locked ?? false;
 
                 return (
                   <article className="day-meal-row" key={slot.key}>
                     <div className="day-meal-main">
-                      <span className={`meal-slot-marker meal-bar-${slot.key}`} />
+                      <span
+                        className={`meal-slot-marker meal-bar-${slot.key}`}
+                      />
                       <div>
                         <p>{slot.label}</p>
                         <h3>{recipe?.title ?? "Not planned"}</h3>
                         {recipe ? (
                           <span>
-                            {recipe.prepMinutes + recipe.cookMinutes} min · {recipe.servings} servings
+                            {recipe.prepMinutes + recipe.cookMinutes} min ·{" "}
+                            {recipe.servings} servings
                           </span>
                         ) : (
                           <span>Pick manually or roll a saved recipe.</span>
@@ -1222,8 +1347,16 @@ export function PlanClient({
                     </div>
                     <div className="day-meal-actions">
                       <button
-                        aria-label={isLocked ? `Unlock ${slot.label}` : `Lock ${slot.label}`}
-                        className={isLocked ? "icon-toggle icon-toggle-active" : "icon-toggle"}
+                        aria-label={
+                          isLocked
+                            ? `Unlock ${slot.label}`
+                            : `Lock ${slot.label}`
+                        }
+                        className={
+                          isLocked
+                            ? "icon-toggle icon-toggle-active"
+                            : "icon-toggle"
+                        }
                         disabled={!entry}
                         onClick={() => toggleLock(selectedDate, slot.key)}
                         type="button"
@@ -1241,8 +1374,10 @@ export function PlanClient({
                         onClick={() =>
                           void generate({
                             mealSlots: [slot.key],
-                            rerollTargets: [{ date: selectedDate, mealSlot: slot.key }],
-                            dates: [selectedDate]
+                            rerollTargets: [
+                              { date: selectedDate, mealSlot: slot.key },
+                            ],
+                            dates: [selectedDate],
                           })
                         }
                         type="button"
@@ -1251,7 +1386,9 @@ export function PlanClient({
                       </button>
                       <button
                         className="pick-recipe-button"
-                        onClick={() => openPicker({ date: selectedDate, mealSlot: slot.key })}
+                        onClick={() =>
+                          openPicker({ date: selectedDate, mealSlot: slot.key })
+                        }
                         type="button"
                       >
                         Pick
@@ -1266,7 +1403,10 @@ export function PlanClient({
                         <Trash2 aria-hidden="true" size={16} />
                       </button>
                       {recipe ? (
-                        <Link className="cook-link" href={`/cook?recipeId=${recipe.id}`}>
+                        <Link
+                          className="cook-link"
+                          href={`/cook?recipeId=${recipe.id}`}
+                        >
                           <Utensils aria-hidden="true" size={16} />
                           Cook
                         </Link>
@@ -1295,7 +1435,9 @@ export function PlanClient({
           >
             <div className="recipe-picker-header">
               <div>
-                <p className="plan-date">{activeGenerationDates.length || 0} days</p>
+                <p className="plan-date">
+                  {activeGenerationDates.length || 0} days
+                </p>
                 <h2 id="generate-plan-title">Generate plan</h2>
               </div>
               <button
@@ -1318,7 +1460,7 @@ export function PlanClient({
                     setGenerateSelectedDates(null);
                     setGenerateRange((current) => ({
                       ...current,
-                      startDate: event.target.value
+                      startDate: event.target.value,
                     }));
                   }}
                 />
@@ -1332,7 +1474,7 @@ export function PlanClient({
                     setGenerateSelectedDates(null);
                     setGenerateRange((current) => ({
                       ...current,
-                      endDate: event.target.value
+                      endDate: event.target.value,
                     }));
                   }}
                 />
@@ -1361,7 +1503,7 @@ export function PlanClient({
                       onChange={(event) =>
                         setSelectedSlots((current) => ({
                           ...current,
-                          [slot.key]: event.target.checked
+                          [slot.key]: event.target.checked,
                         }))
                       }
                       type="checkbox"
@@ -1400,7 +1542,9 @@ export function PlanClient({
                 <span>Avoid recent meals</span>
                 <input
                   checked={avoidRecentMeals}
-                  onChange={(event) => setAvoidRecentMeals(event.target.checked)}
+                  onChange={(event) =>
+                    setAvoidRecentMeals(event.target.checked)
+                  }
                   type="checkbox"
                 />
               </label>
@@ -1408,7 +1552,9 @@ export function PlanClient({
                 <span>Prefer quick weekdays</span>
                 <input
                   checked={preferQuickWeekdays}
-                  onChange={(event) => setPreferQuickWeekdays(event.target.checked)}
+                  onChange={(event) =>
+                    setPreferQuickWeekdays(event.target.checked)
+                  }
                   type="checkbox"
                 />
               </label>
@@ -1431,7 +1577,9 @@ export function PlanClient({
 
             <div className="plan-action-grid">
               <Button
-                disabled={isBusy || recipeList.length === 0 || generationSlotCount === 0}
+                disabled={
+                  isBusy || recipeList.length === 0 || generationSlotCount === 0
+                }
                 onClick={() =>
                   void generate({
                     mealSlots: generationSlots,
@@ -1439,14 +1587,18 @@ export function PlanClient({
                       ? { dates: generateSelectedDates }
                       : { range: generateRange }),
                     closeModal: true,
-                    openReview: true
+                    openReview: true,
                   })
                 }
               >
                 <Sparkles aria-hidden="true" size={17} />
                 Generate plan
               </Button>
-              <Button disabled={isBusy} onClick={() => void clearRange()} variant="secondary">
+              <Button
+                disabled={isBusy}
+                onClick={() => void clearRange()}
+                variant="secondary"
+              >
                 <Trash2 aria-hidden="true" size={17} />
                 Clear range
               </Button>
@@ -1456,7 +1608,11 @@ export function PlanClient({
       ) : null}
 
       {pickerTarget ? (
-        <div className="recipe-picker-backdrop" role="presentation" onClick={closePicker}>
+        <div
+          className="recipe-picker-backdrop"
+          role="presentation"
+          onClick={closePicker}
+        >
           <section
             aria-labelledby="recipe-picker-title"
             className="recipe-picker-sheet"
@@ -1467,12 +1623,22 @@ export function PlanClient({
             <div className="recipe-picker-header">
               <div>
                 <p className="plan-date">
-                  {formatDate(pickerTarget.date)} · {slotLabel(pickerTarget.mealSlot)}
+                  {formatDate(pickerTarget.date)} ·{" "}
+                  {slotLabel(pickerTarget.mealSlot)}
                 </p>
                 <h2 id="recipe-picker-title">Pick meal</h2>
-                <p>{pickerRecipe ? `Currently ${pickerRecipe.title}` : "Choose a saved recipe"}</p>
+                <p>
+                  {pickerRecipe
+                    ? `Currently ${pickerRecipe.title}`
+                    : "Choose a saved recipe"}
+                </p>
               </div>
-              <button className="icon-toggle" onClick={closePicker} type="button" aria-label="Close picker">
+              <button
+                className="icon-toggle"
+                onClick={closePicker}
+                type="button"
+                aria-label="Close picker"
+              >
                 <X aria-hidden="true" size={18} />
               </button>
             </div>
@@ -1488,13 +1654,16 @@ export function PlanClient({
             <div className="recipe-picker-results">
               {pickerRecipes.map((recipe) => {
                 const isSelected = recipe.id === pickerEntry?.recipeId;
-                const isEligible = isRecipeEligibleForSlot(recipe, pickerTarget.mealSlot);
+                const isEligible = isRecipeEligibleForSlot(
+                  recipe,
+                  pickerTarget.mealSlot,
+                );
                 return (
                   <button
                     className={[
                       "picker-result",
                       isSelected ? "picker-result-active" : "",
-                      isEligible ? "" : "picker-result-warning"
+                      isEligible ? "" : "picker-result-warning",
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -1505,7 +1674,8 @@ export function PlanClient({
                     <span>
                       <strong>{recipe.title}</strong>
                       <small>
-                        {recipe.prepMinutes + recipe.cookMinutes} min · {recipe.servings} servings
+                        {recipe.prepMinutes + recipe.cookMinutes} min ·{" "}
+                        {recipe.servings} servings
                       </small>
                       <em>
                         {isEligible
@@ -1520,7 +1690,9 @@ export function PlanClient({
               {pickerRecipes.length === 0 ? (
                 <div className="picker-empty">
                   <strong>No recipes found</strong>
-                  <p>Try a title, tag, or ingredient from your saved recipes.</p>
+                  <p>
+                    Try a title, tag, or ingredient from your saved recipes.
+                  </p>
                 </div>
               ) : null}
             </div>

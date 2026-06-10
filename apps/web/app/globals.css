@@ -1820,10 +1820,10 @@ button {
   background: #fbfdfb;
   border: 1px solid var(--border);
   border-radius: 8px;
-  display: grid;
+  display: flex;
   gap: 10px;
-  grid-template-columns: 1fr;
-  padding: 10px;
+  justify-content: space-between;
+  padding: 9px;
 }
 
 .plan-selection-bar strong,
@@ -1847,13 +1847,15 @@ button {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .plan-selection-actions .plan-today-button,
 .plan-selection-actions .button {
-  flex: 1 1 96px;
-  min-height: 40px;
+  flex: 0 1 auto;
+  min-height: 38px;
+  padding-inline: 10px;
 }
 
 .date-range-grid,
