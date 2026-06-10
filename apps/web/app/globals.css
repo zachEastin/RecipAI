@@ -455,14 +455,12 @@ button {
 .wizard-card-heading h3,
 .wizard-card-heading p,
 .wizard-review-heading h3,
-.wizard-review-heading p,
-.wizard-draft-empty h3,
-.wizard-draft-empty p {
+.wizard-review-heading p {
   margin: 0;
 }
 
 .wizard-title h2 {
-  font-size: 1.34rem;
+  font-size: 1.18rem;
   line-height: 1.14;
 }
 
@@ -490,9 +488,11 @@ button {
   font-size: 0.86rem;
   font-weight: 900;
   gap: 6px;
-  min-height: 38px;
-  padding: 8px 10px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
   text-decoration: none;
+  width: 36px;
 }
 
 .wizard-mode-card {
@@ -514,10 +514,10 @@ button {
   border-radius: 0;
   color: var(--muted);
   display: inline-flex;
-  gap: 6px;
+  gap: 5px;
   justify-content: center;
-  min-height: 46px;
-  padding: 8px 6px;
+  min-height: 42px;
+  padding: 7px 5px;
 }
 
 .wizard-mode-card svg {
@@ -549,58 +549,13 @@ button {
   color: #d91725;
 }
 
-.wizard-step-rail {
-  align-items: center;
-  display: grid;
-  gap: 7px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.wizard-step-rail span {
-  align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  display: inline-flex;
-  font-size: 0.76rem;
-  font-weight: 900;
-  gap: 6px;
-  justify-content: center;
-  min-height: 34px;
-  padding: 5px 7px;
-  text-transform: capitalize;
-}
-
-.wizard-step-rail i {
-  align-items: center;
-  background: #f1f6f2;
-  border-radius: 50%;
-  display: inline-flex;
-  font-style: normal;
-  height: 21px;
-  justify-content: center;
-  width: 21px;
-}
-
-.wizard-step-rail .wizard-step-active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #ffffff;
-}
-
-.wizard-step-active i {
-  background: rgba(255, 255, 255, 0.18);
-}
-
 .wizard-workspace {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .wizard-prompt-card,
-.wizard-review-panel,
-.wizard-draft-empty {
+.wizard-review-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -610,36 +565,32 @@ button {
 .wizard-prompt-card,
 .wizard-review-panel {
   display: grid;
-  gap: 14px;
-  padding: 15px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .wizard-card-heading,
-.wizard-review-heading,
-.wizard-draft-empty {
+.wizard-review-heading {
   align-items: flex-start;
   display: flex;
   gap: 11px;
 }
 
 .wizard-card-heading svg,
-.wizard-review-heading svg,
-.wizard-draft-empty svg {
+.wizard-review-heading svg {
   color: var(--primary);
   flex: 0 0 auto;
   margin-top: 2px;
 }
 
 .wizard-card-heading h3,
-.wizard-review-heading h3,
-.wizard-draft-empty h3 {
+.wizard-review-heading h3 {
   font-size: 1.08rem;
   line-height: 1.18;
 }
 
 .wizard-card-heading p,
-.wizard-review-heading p,
-.wizard-draft-empty p {
+.wizard-review-heading p {
   color: var(--muted);
   line-height: 1.38;
   margin-top: 4px;
@@ -736,11 +687,6 @@ button {
 .wizard-input:focus {
   border-color: var(--primary);
   outline: 3px solid rgba(21, 79, 59, 0.14);
-}
-
-.wizard-draft-empty {
-  box-shadow: none;
-  padding: 16px;
 }
 
 .web-search-screen,

@@ -5,13 +5,12 @@ import {
   Bot,
   CheckCircle2,
   ChevronRight,
-  ClipboardList,
   FilePenLine,
   Globe2,
   Link as LinkIcon,
   Search,
   Sparkles,
-  X
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,7 +24,6 @@ import { Button, TextArea } from "../ui";
 import { RecipeEditor, type RecipeEditorDraft } from "./recipe-editor";
 
 type WizardMode = "ai" | "url" | "web" | "manual";
-type WizardStep = "choose" | "draft" | "review";
 
 type AiPromptResponse = {
   run?: { id: string };
@@ -70,7 +68,7 @@ const promptChips = [
   "15-minute dinner",
   "Use leftovers",
   "Kid friendly",
-  "High protein"
+  "High protein",
 ] as const;
 
 const modeOptions: Array<{
@@ -83,35 +81,27 @@ const modeOptions: Array<{
     body: "Prompt RecipAI for a structured draft.",
     icon: Bot,
     id: "ai",
-    label: "AI"
+    label: "AI",
   },
   {
     body: "Paste a recipe link and review it.",
     icon: LinkIcon,
     id: "url",
-    label: "URL"
+    label: "URL",
   },
   {
     body: "Search recipe sources and save a result.",
     icon: Globe2,
     id: "web",
-    label: "Search Web"
+    label: "Search Web",
   },
   {
     body: "Type the recipe in by hand.",
     icon: FilePenLine,
     id: "manual",
-    label: "Manual"
-  }
+    label: "Manual",
+  },
 ];
-
-function stepForMode(mode: WizardMode, hasDraft: boolean): WizardStep {
-  if (mode === "manual") {
-    return "review";
-  }
-
-  return hasDraft ? "review" : "choose";
-}
 
 function withChip(prompt: string, chip: string): string {
   const trimmed = prompt.trim();
@@ -127,7 +117,7 @@ export function AddRecipeWizard({
   initialMode = "ai",
   initialSource = "",
   initialUrl = "",
-  recipes
+  recipes,
 }: {
   initialMode?: WizardMode;
   initialSource?: string;
@@ -155,7 +145,7 @@ export function AddRecipeWizard({
   const [webOptions, setWebOptions] = useState<WebRecipeOptions>({
     areas: [],
     categories: [],
-    ingredients: []
+    ingredients: [],
   });
   const [webResults, setWebResults] = useState<WebRecipeSearchResult[]>([]);
   const [hasSearchedWeb, setHasSearchedWeb] = useState(false);
@@ -164,11 +154,12 @@ export function AddRecipeWizard({
   const [isWorking, setIsWorking] = useState(false);
 
   const selectedRecipe = useMemo(
-    () => recipes.find((recipe) => recipe.id === sourceRecipeId) ?? recipes[0] ?? null,
+    () =>
+      recipes.find((recipe) => recipe.id === sourceRecipeId) ??
+      recipes[0] ??
+      null,
     [recipes, sourceRecipeId],
   );
-  const hasDraft = Boolean(aiResult || urlDraft || webDraft);
-  const activeStep = stepForMode(mode, hasDraft);
   useEffect(() => {
     if (mode !== "web" || webOptions.categories.length) {
       return;
@@ -217,20 +208,29 @@ export function AddRecipeWizard({
         body: JSON.stringify({
           mode: aiMode,
           prompt: aiPrompt,
-          sourceRecipeId: aiMode === "modify-saved-recipe" ? sourceRecipeId : undefined
-        })
+          sourceRecipeId:
+            aiMode === "modify-saved-recipe" ? sourceRecipeId : undefined,
+        }),
       });
       const payload = (await response.json()) as AiPromptResponse;
 
       if (!response.ok || !payload.result) {
-        throw new Error(payload.error ?? "RecipAI could not create that draft.");
+        throw new Error(
+          payload.error ?? "RecipAI could not create that draft.",
+        );
       }
 
       setAiResult(payload.result);
       setAiRunId(payload.run?.id ?? null);
-      setAiSourceRecipeId(aiMode === "modify-saved-recipe" ? sourceRecipeId : null);
+      setAiSourceRecipeId(
+        aiMode === "modify-saved-recipe" ? sourceRecipeId : null,
+      );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "RecipAI could not create that draft.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "RecipAI could not create that draft.",
+      );
     } finally {
       setIsWorking(false);
     }
@@ -244,7 +244,7 @@ export function AddRecipeWizard({
       const response = await fetch("/api/recipes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: nextUrl })
+        body: JSON.stringify({ url: nextUrl }),
       });
       const payload = (await response.json()) as ImportResponse;
 
@@ -263,12 +263,16 @@ export function AddRecipeWizard({
         mealSlots: inferRecipeMealSlots(payload.review),
         ingredients: payload.review.ingredients,
         steps: payload.review.steps,
-        provenance: "url-import"
+        provenance: "url-import",
       });
       setUrlNotes(payload.review.parserNotes ?? []);
       setUrlStatus(payload.review.parserStatus ?? null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "That URL could not be imported.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "That URL could not be imported.",
+      );
     } finally {
       setIsWorking(false);
     }
@@ -288,7 +292,9 @@ export function AddRecipeWizard({
   function toggleWebIngredient(ingredient: string, checked: boolean) {
     setWebIngredients((current) => {
       if (checked) {
-        return current.some((item) => item.toLowerCase() === ingredient.toLowerCase())
+        return current.some(
+          (item) => item.toLowerCase() === ingredient.toLowerCase(),
+        )
           ? current
           : [...current, ingredient];
       }
@@ -321,20 +327,28 @@ export function AddRecipeWizard({
     }
 
     try {
-      const response = await fetch(`/api/web-recipes/search?${params.toString()}`);
+      const response = await fetch(
+        `/api/web-recipes/search?${params.toString()}`,
+      );
       const payload = (await response.json()) as {
         recipes?: WebRecipeSearchResult[];
         error?: string;
       };
 
       if (!response.ok || !payload.recipes) {
-        throw new Error(payload.error ?? "Web recipe search could not be completed.");
+        throw new Error(
+          payload.error ?? "Web recipe search could not be completed.",
+        );
       }
 
       setWebResults(payload.recipes);
       setHasSearchedWeb(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Web recipe search could not be completed.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Web recipe search could not be completed.",
+      );
     } finally {
       setIsWorking(false);
     }
@@ -345,22 +359,30 @@ export function AddRecipeWizard({
     setIsWorking(true);
 
     try {
-      const response = await fetch(`/api/web-recipes/${encodeURIComponent(recipeId)}`);
+      const response = await fetch(
+        `/api/web-recipes/${encodeURIComponent(recipeId)}`,
+      );
       const payload = (await response.json()) as {
         draft?: WebRecipeDraft;
         error?: string;
       };
 
       if (!response.ok || !payload.draft) {
-        throw new Error(payload.error ?? "That web recipe could not be loaded.");
+        throw new Error(
+          payload.error ?? "That web recipe could not be loaded.",
+        );
       }
 
       setWebDraft({
         ...payload.draft,
-        mealSlots: inferRecipeMealSlots(payload.draft)
+        mealSlots: inferRecipeMealSlots(payload.draft),
       });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "That web recipe could not be loaded.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "That web recipe could not be loaded.",
+      );
     } finally {
       setIsWorking(false);
     }
@@ -372,9 +394,12 @@ export function AddRecipeWizard({
         <div>
           <h2>Add recipe</h2>
         </div>
-        <Link className="wizard-exit-link" href="/library" aria-label="Back to library">
+        <Link
+          className="wizard-exit-link"
+          href="/library"
+          aria-label="Back to library"
+        >
           <ArrowLeft aria-hidden="true" size={17} />
-          Library
         </Link>
       </div>
 
@@ -397,21 +422,6 @@ export function AddRecipeWizard({
         })}
       </section>
 
-      {mode === "web" ? null : (
-        <div className="wizard-step-rail" aria-label="Add recipe progress">
-          {(["choose", "draft", "review"] as const).map((step, index) => (
-            <span
-              aria-current={activeStep === step ? "step" : undefined}
-              className={activeStep === step ? "wizard-step-active" : ""}
-              key={step}
-            >
-              <i>{index + 1}</i>
-              {step}
-            </span>
-          ))}
-        </div>
-      )}
-
       {error ? (
         <section className="error-panel">
           <strong>Draft failed</strong>
@@ -426,10 +436,13 @@ export function AddRecipeWizard({
               <Sparkles aria-hidden="true" size={23} />
               <div>
                 <h3>AI recipe draft</h3>
-                <p>Generate a structured result you can save, cook, or adjust.</p>
               </div>
             </div>
-            <div className="mode-toggle add-wizard-toggle" role="group" aria-label="AI draft type">
+            <div
+              className="mode-toggle add-wizard-toggle"
+              role="group"
+              aria-label="AI draft type"
+            >
               <button
                 aria-pressed={aiMode === "general-recipe"}
                 onClick={() => setAiMode("general-recipe")}
@@ -456,7 +469,9 @@ export function AddRecipeWizard({
                 <button
                   className="chip"
                   key={chip}
-                  onClick={() => setAiPrompt((current) => withChip(current, chip))}
+                  onClick={() =>
+                    setAiPrompt((current) => withChip(current, chip))
+                  }
                   type="button"
                 >
                   {chip}
@@ -497,7 +512,9 @@ export function AddRecipeWizard({
                 <CheckCircle2 aria-hidden="true" size={20} />
                 <div>
                   <h3>Review AI draft</h3>
-                  <p>Save it when it looks right, or revise the prompt above.</p>
+                  <p>
+                    Save it when it looks right, or revise the prompt above.
+                  </p>
                 </div>
               </div>
               <AiResultView
@@ -506,15 +523,7 @@ export function AddRecipeWizard({
                 sourceRecipeId={aiSourceRecipeId}
               />
             </section>
-          ) : (
-            <section className="wizard-draft-empty">
-              <ClipboardList aria-hidden="true" size={22} />
-              <div>
-                <h3>Draft preview</h3>
-                <p>Your structured recipe result will appear here with ingredients, steps, and save actions.</p>
-              </div>
-            </section>
-          )}
+          ) : null}
         </section>
       ) : null}
 
@@ -525,7 +534,6 @@ export function AddRecipeWizard({
               <LinkIcon aria-hidden="true" size={23} />
               <div>
                 <h3>Import from URL</h3>
-                <p>Paste a recipe link, then review every field before saving.</p>
               </div>
             </div>
             <label className="field-label">
@@ -548,23 +556,20 @@ export function AddRecipeWizard({
                 <CheckCircle2 aria-hidden="true" size={20} />
                 <div>
                   <h3>Review imported draft</h3>
-                  <p>{urlNotes.join(" ") || "Imported fields are ready to edit before saving."}</p>
+                  <p>
+                    {urlNotes.join(" ") ||
+                      "Imported fields are ready to edit before saving."}
+                  </p>
                 </div>
               </div>
               {urlStatus ? (
-                <p className="wizard-import-status">Parser status: {urlStatus}</p>
+                <p className="wizard-import-status">
+                  Parser status: {urlStatus}
+                </p>
               ) : null}
               <RecipeEditor key={urlDraft.source} initialDraft={urlDraft} />
             </section>
-          ) : (
-            <section className="wizard-draft-empty">
-              <LinkIcon aria-hidden="true" size={22} />
-              <div>
-                <h3>URL preview</h3>
-                <p>The parsed title, ingredients, steps, and source will appear here before saving.</p>
-              </div>
-            </section>
-          )}
+          ) : null}
         </section>
       ) : null}
 
@@ -676,7 +681,10 @@ export function AddRecipeWizard({
                   </button>
                 </div>
                 {showWebIngredients || webIngredients.length ? (
-                  <section className="web-filter-panel" aria-label="Ingredient filters">
+                  <section
+                    className="web-filter-panel"
+                    aria-label="Ingredient filters"
+                  >
                     {showWebIngredients ? (
                       <div className="web-ingredient-menu">
                         <div className="web-ingredient-toggle-list">
@@ -689,7 +697,10 @@ export function AddRecipeWizard({
                                 <input
                                   checked={checked}
                                   onChange={(event) =>
-                                    toggleWebIngredient(option.id, event.target.checked)
+                                    toggleWebIngredient(
+                                      option.id,
+                                      event.target.checked,
+                                    )
                                   }
                                   type="checkbox"
                                 />
@@ -700,7 +711,10 @@ export function AddRecipeWizard({
                       </div>
                     ) : null}
                     {webIngredients.length ? (
-                      <div className="web-selected-ingredients" aria-label="Selected ingredients">
+                      <div
+                        className="web-selected-ingredients"
+                        aria-label="Selected ingredients"
+                      >
                         {webIngredients.map((ingredient) => (
                           <button
                             aria-label={`Remove ${ingredient}`}
@@ -719,8 +733,8 @@ export function AddRecipeWizard({
                       </div>
                     ) : null}
                     <div className="web-filter-note">
-                      Free web search supports one ingredient upstream. Multiple ingredients are
-                      matched after loading recipe details.
+                      Free web search supports one ingredient upstream. Multiple
+                      ingredients are matched after loading recipe details.
                     </div>
                     {webCategory || webArea || webIngredients.length ? (
                       <button
@@ -733,7 +747,11 @@ export function AddRecipeWizard({
                     ) : null}
                   </section>
                 ) : null}
-                <Button className="full-width" disabled={isWorking} type="submit">
+                <Button
+                  className="full-width"
+                  disabled={isWorking}
+                  type="submit"
+                >
                   {isWorking ? "Searching..." : "Search Web"}
                 </Button>
               </form>
@@ -762,8 +780,9 @@ export function AddRecipeWizard({
                         <div className="web-result-main">
                           <h4>{result.title}</h4>
                           <p>
-                            {[result.category, result.area].filter(Boolean).join(" • ") ||
-                              "Web recipe"}
+                            {[result.category, result.area]
+                              .filter(Boolean)
+                              .join(" • ") || "Web recipe"}
                           </p>
                           <div className="web-tag-row">
                             {result.tags.slice(0, 3).map((tag, index) => (
@@ -792,12 +811,21 @@ export function AddRecipeWizard({
                     ))}
                   </div>
                 ) : (
-                  <div className={hasSearchedWeb ? "web-empty-state web-no-results" : "web-empty-state"}>
+                  <div
+                    className={
+                      hasSearchedWeb
+                        ? "web-empty-state web-no-results"
+                        : "web-empty-state"
+                    }
+                  >
                     {hasSearchedWeb ? (
                       <>
                         <Search aria-hidden="true" size={24} />
                         <h3>No web recipes found</h3>
-                        <p>Nothing matched this search. Try fewer ingredients or clear a filter.</p>
+                        <p>
+                          Nothing matched this search. Try fewer ingredients or
+                          clear a filter.
+                        </p>
                       </>
                     ) : (
                       <>
@@ -820,7 +848,6 @@ export function AddRecipeWizard({
             <FilePenLine aria-hidden="true" size={20} />
             <div>
               <h3>Manual recipe</h3>
-              <p>Use one ingredient or step per line. You can refine details after saving.</p>
             </div>
           </div>
           <RecipeEditor initialSource={initialSource} />
