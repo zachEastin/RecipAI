@@ -561,7 +561,11 @@ export function PlanClient({
       </section>
 
       {selectedDate ? (
-        <div className="recipe-picker-backdrop" role="presentation" onClick={() => setSelectedDate(null)}>
+        <div
+          className="recipe-picker-backdrop day-plan-backdrop"
+          role="presentation"
+          onClick={() => setSelectedDate(null)}
+        >
           <section
             aria-labelledby="day-plan-title"
             className="day-plan-sheet"

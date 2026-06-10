@@ -1262,6 +1262,10 @@ button {
   z-index: 20;
 }
 
+.day-plan-backdrop {
+  align-items: center;
+}
+
 .recipe-picker-sheet,
 .day-plan-sheet,
 .generate-plan-sheet {
