@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { Trash2 } from "lucide-react";
 
 import { MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
 
@@ -113,6 +114,32 @@ function saveIngredientFromRow(row: IngredientRow) {
     note: row.note.trim() || null,
     groceryCategory: "Other"
   };
+}
+
+function EditableIngredientCell({
+  ariaLabel,
+  onChange,
+  placeholder,
+  value
+}: {
+  ariaLabel: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <div
+      aria-label={ariaLabel}
+      className="ingredient-cell-text"
+      contentEditable
+      data-placeholder={placeholder}
+      onInput={(event) => onChange(event.currentTarget.textContent ?? "")}
+      role="textbox"
+      suppressContentEditableWarning
+    >
+      {value}
+    </div>
+  );
 }
 
 function stateFromRecipe(
@@ -365,60 +392,77 @@ export function RecipeEditor({
           </div>
         </div>
         {ingredientMode === "structured" ? (
-          <div className="ingredient-row-list">
+          <div className="ingredient-table-shell">
             <datalist id="ingredient-unit-options">
               {COMMON_UNITS.map((unit) => (
                 <option key={unit} value={unit} />
               ))}
             </datalist>
-            {ingredientRows.map((row, index) => (
-              <div className="ingredient-row-editor" key={row.id}>
-                <label>
-                  Amount
-                  <input
-                    aria-label={`Ingredient ${index + 1} amount`}
-                    inputMode="decimal"
-                    onChange={(event) =>
-                      updateIngredientRow(row.id, "quantity", event.target.value)
-                    }
-                    value={row.quantity}
-                  />
-                </label>
-                <label>
-                  Unit
-                  <input
-                    aria-label={`Ingredient ${index + 1} unit`}
-                    list="ingredient-unit-options"
-                    onChange={(event) => updateIngredientRow(row.id, "unit", event.target.value)}
-                    value={row.unit}
-                  />
-                </label>
-                <label>
-                  Name
-                  <input
-                    aria-label={`Ingredient ${index + 1} name`}
-                    onChange={(event) => updateIngredientRow(row.id, "name", event.target.value)}
-                    value={row.name}
-                  />
-                </label>
-                <label>
-                  Note
-                  <input
-                    aria-label={`Ingredient ${index + 1} note`}
-                    onChange={(event) => updateIngredientRow(row.id, "note", event.target.value)}
-                    value={row.note}
-                  />
-                </label>
-                <button
-                  aria-label={`Remove ingredient ${index + 1}`}
-                  className="ingredient-row-remove"
-                  onClick={() => removeIngredientRow(row.id)}
-                  type="button"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+            <table className="ingredient-table">
+              <thead>
+                <tr>
+                  <th scope="col">Amt</th>
+                  <th scope="col">Unit</th>
+                  <th scope="col">Ingredient</th>
+                  <th scope="col">Note</th>
+                  <th aria-label="Ingredient actions" scope="col" />
+                </tr>
+              </thead>
+              <tbody>
+                {ingredientRows.map((row, index) => (
+                  <tr key={row.id}>
+                    <td>
+                      <input
+                        aria-label={`Ingredient ${index + 1} amount`}
+                        inputMode="decimal"
+                        onChange={(event) =>
+                          updateIngredientRow(row.id, "quantity", event.target.value)
+                        }
+                        placeholder="--"
+                        value={row.quantity}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        aria-label={`Ingredient ${index + 1} unit`}
+                        list="ingredient-unit-options"
+                        onChange={(event) =>
+                          updateIngredientRow(row.id, "unit", event.target.value)
+                        }
+                        placeholder="--"
+                        value={row.unit}
+                      />
+                    </td>
+                    <td>
+                      <EditableIngredientCell
+                        ariaLabel={`Ingredient ${index + 1} name`}
+                        onChange={(value) => updateIngredientRow(row.id, "name", value)}
+                        placeholder="Ingredient"
+                        value={row.name}
+                      />
+                    </td>
+                    <td>
+                      <EditableIngredientCell
+                        ariaLabel={`Ingredient ${index + 1} note`}
+                        onChange={(value) => updateIngredientRow(row.id, "note", value)}
+                        placeholder="--"
+                        value={row.note}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        aria-label={`Remove ingredient ${index + 1}`}
+                        className="ingredient-row-remove"
+                        onClick={() => removeIngredientRow(row.id)}
+                        type="button"
+                      >
+                        <Trash2 aria-hidden="true" size={20} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <button className="ingredient-add-row" onClick={addIngredientRow} type="button">
               Add ingredient
             </button>
