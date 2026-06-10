@@ -2466,12 +2466,29 @@ button {
 
 .shop-control-panel {
   display: grid;
-  gap: 14px;
+  gap: 10px;
+  padding: 12px;
+}
+
+.shop-panel-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.shop-panel-header h2 {
+  font-size: 1.04rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.shop-panel-header svg {
+  color: var(--primary);
 }
 
 .shop-action-grid {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   grid-template-columns: 1fr 1fr;
 }
 
@@ -2480,7 +2497,7 @@ button {
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  padding: 14px;
+  padding: 11px 12px;
 }
 
 .shopping-summary h2,
@@ -2498,13 +2515,13 @@ button {
 .shopping-summary p:not(.plan-date) {
   color: var(--muted);
   font-weight: 800;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .add-shopping-item {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
 }
 
 .shop-item-grid {
@@ -2528,6 +2545,20 @@ button {
 }
 
 .shop-item-grid input:last-child {
+  grid-column: 1 / -1;
+}
+
+.add-shop-item-grid {
+  grid-template-columns:
+    minmax(50px, 0.5fr) minmax(54px, 0.55fr) minmax(0, 1.55fr)
+    auto;
+}
+
+.add-shop-item-grid input:last-of-type {
+  grid-column: 1 / -1;
+}
+
+.add-shop-item-grid .button {
   grid-column: 1 / -1;
 }
 
@@ -2626,7 +2657,9 @@ button {
     grid-template-columns: 70px 70px minmax(0, 1fr) 120px;
   }
 
-  .shop-item-grid input:last-child {
+  .shop-item-grid input:last-child,
+  .add-shop-item-grid input:last-of-type,
+  .add-shop-item-grid .button {
     grid-column: auto;
   }
 }

@@ -9,7 +9,7 @@ import {
   Save,
   ShoppingBasket,
   Trash2,
-  X
+  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -33,7 +33,7 @@ type DraftItem = {
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
   }).format(new Date(`${value}T12:00:00`));
 }
 
@@ -50,7 +50,7 @@ function itemToDraft(item: ShoppingListItem): DraftItem {
     quantity: formatQuantity(item.quantity),
     unit: item.unit ?? "",
     name: item.name,
-    groceryCategory: item.groceryCategory
+    groceryCategory: item.groceryCategory,
   };
 }
 
@@ -65,7 +65,9 @@ function parseQuantity(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function groupItems(items: ShoppingListItem[]): Array<[string, ShoppingListItem[]]> {
+function groupItems(
+  items: ShoppingListItem[],
+): Array<[string, ShoppingListItem[]]> {
   const groups = new Map<string, ShoppingListItem[]>();
 
   for (const item of items) {
@@ -89,7 +91,7 @@ function groupItems(items: ShoppingListItem[]): Array<[string, ShoppingListItem[
 export function ShopClient({
   startDate,
   endDate,
-  initialList
+  initialList,
 }: {
   startDate: string;
   endDate: string;
@@ -98,13 +100,15 @@ export function ShopClient({
   const [range, setRange] = useState({ startDate, endDate });
   const [list, setList] = useState(initialList);
   const [drafts, setDrafts] = useState<Record<string, DraftItem>>(() =>
-    Object.fromEntries((initialList?.items ?? []).map((item) => [item.id, itemToDraft(item)])),
+    Object.fromEntries(
+      (initialList?.items ?? []).map((item) => [item.id, itemToDraft(item)]),
+    ),
   );
   const [newItem, setNewItem] = useState<DraftItem>({
     quantity: "",
     unit: "",
     name: "",
-    groceryCategory: "Other"
+    groceryCategory: "Other",
   });
   const [status, setStatus] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -115,7 +119,11 @@ export function ShopClient({
 
   function replaceList(next: ShoppingList) {
     setList(next);
-    setDrafts(Object.fromEntries(next.items.map((item) => [item.id, itemToDraft(item)])));
+    setDrafts(
+      Object.fromEntries(
+        next.items.map((item) => [item.id, itemToDraft(item)]),
+      ),
+    );
   }
 
   async function generate() {
@@ -126,7 +134,7 @@ export function ShopClient({
       const response = await fetch("/api/shopping-lists/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(range)
+        body: JSON.stringify(range),
       });
       const payload = (await response.json()) as ShopResponse;
 
@@ -141,7 +149,11 @@ export function ShopClient({
           : "Saved an empty list. Add planned meals in Plan, then generate again.",
       );
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "Could not generate a shopping list.");
+      setStatus(
+        caught instanceof Error
+          ? caught.message
+          : "Could not generate a shopping list.",
+      );
     } finally {
       setIsBusy(false);
     }
@@ -161,7 +173,7 @@ export function ShopClient({
       unit: draft.unit.trim() || null,
       name: draft.name.trim(),
       groceryCategory: draft.groceryCategory.trim() || "Other",
-      checked: draft.checked
+      checked: draft.checked,
     };
 
     if (!payload.name) {
@@ -172,7 +184,7 @@ export function ShopClient({
     const response = await fetch(`/api/shopping-lists/items/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
     const result = (await response.json()) as ShopResponse;
 
@@ -183,7 +195,7 @@ export function ShopClient({
 
     const updatedList = {
       ...list,
-      items: list.items.map((item) => (item.id === id ? result.item! : item))
+      items: list.items.map((item) => (item.id === id ? result.item! : item)),
     };
     replaceList(updatedList);
     setStatus("Shopping item updated.");
@@ -207,8 +219,8 @@ export function ShopClient({
         quantity: parseQuantity(newItem.quantity),
         unit: newItem.unit.trim() || null,
         name: newItem.name.trim(),
-        groceryCategory: newItem.groceryCategory.trim() || "Other"
-      })
+        groceryCategory: newItem.groceryCategory.trim() || "Other",
+      }),
     });
     const result = (await response.json()) as ShopResponse;
 
@@ -224,7 +236,9 @@ export function ShopClient({
   }
 
   async function deleteItem(id: string) {
-    const response = await fetch(`/api/shopping-lists/items/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/shopping-lists/items/${id}`, {
+      method: "DELETE",
+    });
     const result = (await response.json()) as { error?: string };
 
     if (!response.ok || !list) {
@@ -232,7 +246,10 @@ export function ShopClient({
       return;
     }
 
-    const nextList = { ...list, items: list.items.filter((item) => item.id !== id) };
+    const nextList = {
+      ...list,
+      items: list.items.filter((item) => item.id !== id),
+    };
     replaceList(nextList);
     setStatus("Item deleted.");
   }
@@ -242,9 +259,12 @@ export function ShopClient({
       return;
     }
 
-    const response = await fetch(`/api/shopping-lists/${list.id}/clear-completed`, {
-      method: "POST"
-    });
+    const response = await fetch(
+      `/api/shopping-lists/${list.id}/clear-completed`,
+      {
+        method: "POST",
+      },
+    );
     const result = (await response.json()) as ShopResponse;
 
     if (!response.ok || !result.list) {
@@ -259,19 +279,19 @@ export function ShopClient({
   return (
     <div className="screen-stack shop-screen">
       <section className="panel shop-control-panel">
-        <div className="icon-title">
-          <ShoppingBasket aria-hidden="true" size={24} />
-          <div>
-            <h2>Shopping list</h2>
-            <p>Generate a grouped grocery list from planned meals.</p>
-          </div>
+        <div className="shop-panel-header">
+          <h2>Shopping list</h2>
+          <ShoppingBasket aria-hidden="true" size={22} />
         </div>
         <div className="date-range-grid">
           <label>
             Start
             <input
               onChange={(event) =>
-                setRange((current) => ({ ...current, startDate: event.target.value }))
+                setRange((current) => ({
+                  ...current,
+                  startDate: event.target.value,
+                }))
               }
               type="date"
               value={range.startDate}
@@ -281,7 +301,10 @@ export function ShopClient({
             End
             <input
               onChange={(event) =>
-                setRange((current) => ({ ...current, endDate: event.target.value }))
+                setRange((current) => ({
+                  ...current,
+                  endDate: event.target.value,
+                }))
               }
               type="date"
               value={range.endDate}
@@ -313,7 +336,6 @@ export function ShopClient({
               <p className="plan-date">
                 {formatDate(list.startsOn)} - {formatDate(list.endsOn)}
               </p>
-              <h2>{list.title}</h2>
               <p>
                 {checkedCount} of {totalCount} checked
               </p>
@@ -330,12 +352,15 @@ export function ShopClient({
           </section>
 
           <section className="add-shopping-item">
-            <div className="shop-item-grid">
+            <div className="shop-item-grid add-shop-item-grid">
               <input
                 aria-label="New item quantity"
                 inputMode="decimal"
                 onChange={(event) =>
-                  setNewItem((current) => ({ ...current, quantity: event.target.value }))
+                  setNewItem((current) => ({
+                    ...current,
+                    quantity: event.target.value,
+                  }))
                 }
                 placeholder="Qty"
                 value={newItem.quantity}
@@ -343,7 +368,10 @@ export function ShopClient({
               <input
                 aria-label="New item unit"
                 onChange={(event) =>
-                  setNewItem((current) => ({ ...current, unit: event.target.value }))
+                  setNewItem((current) => ({
+                    ...current,
+                    unit: event.target.value,
+                  }))
                 }
                 placeholder="Unit"
                 value={newItem.unit}
@@ -351,7 +379,10 @@ export function ShopClient({
               <input
                 aria-label="New item name"
                 onChange={(event) =>
-                  setNewItem((current) => ({ ...current, name: event.target.value }))
+                  setNewItem((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
                 }
                 placeholder="Add item"
                 value={newItem.name}
@@ -361,17 +392,17 @@ export function ShopClient({
                 onChange={(event) =>
                   setNewItem((current) => ({
                     ...current,
-                    groceryCategory: event.target.value
+                    groceryCategory: event.target.value,
                   }))
                 }
                 placeholder="Category"
                 value={newItem.groceryCategory}
               />
+              <Button onClick={addItem} type="button" variant="secondary">
+                <Plus aria-hidden="true" size={18} />
+                Add
+              </Button>
             </div>
-            <Button onClick={addItem} type="button" variant="secondary">
-              <Plus aria-hidden="true" size={18} />
-              Add item
-            </Button>
           </section>
 
           <div className="shopping-groups">
@@ -389,17 +420,25 @@ export function ShopClient({
                       return (
                         <article
                           className={
-                            item.checked ? "shopping-item shopping-item-checked" : "shopping-item"
+                            item.checked
+                              ? "shopping-item shopping-item-checked"
+                              : "shopping-item"
                           }
                           key={item.id}
                         >
                           <label className="shopping-check">
                             <input
                               checked={item.checked}
-                              onChange={(event) => toggleChecked(item, event.target.checked)}
+                              onChange={(event) =>
+                                toggleChecked(item, event.target.checked)
+                              }
                               type="checkbox"
                             />
-                            <span>{item.checked ? <Check aria-hidden="true" size={15} /> : null}</span>
+                            <span>
+                              {item.checked ? (
+                                <Check aria-hidden="true" size={15} />
+                              ) : null}
+                            </span>
                           </label>
                           <div className="shop-item-grid">
                             <input
@@ -408,7 +447,10 @@ export function ShopClient({
                               onChange={(event) =>
                                 setDrafts((current) => ({
                                   ...current,
-                                  [item.id]: { ...draft, quantity: event.target.value }
+                                  [item.id]: {
+                                    ...draft,
+                                    quantity: event.target.value,
+                                  },
                                 }))
                               }
                               placeholder="Qty"
@@ -419,7 +461,10 @@ export function ShopClient({
                               onChange={(event) =>
                                 setDrafts((current) => ({
                                   ...current,
-                                  [item.id]: { ...draft, unit: event.target.value }
+                                  [item.id]: {
+                                    ...draft,
+                                    unit: event.target.value,
+                                  },
                                 }))
                               }
                               placeholder="Unit"
@@ -430,7 +475,10 @@ export function ShopClient({
                               onChange={(event) =>
                                 setDrafts((current) => ({
                                   ...current,
-                                  [item.id]: { ...draft, name: event.target.value }
+                                  [item.id]: {
+                                    ...draft,
+                                    name: event.target.value,
+                                  },
                                 }))
                               }
                               placeholder="Item"
@@ -443,8 +491,8 @@ export function ShopClient({
                                   ...current,
                                   [item.id]: {
                                     ...draft,
-                                    groceryCategory: event.target.value
-                                  }
+                                    groceryCategory: event.target.value,
+                                  },
                                 }))
                               }
                               placeholder="Category"
@@ -479,7 +527,9 @@ export function ShopClient({
               <div className="empty-state">
                 <ClipboardList aria-hidden="true" size={28} />
                 <h2>No items in this list</h2>
-                <p>Add planned dinners, generate again, or add items manually.</p>
+                <p>
+                  Add planned dinners, generate again, or add items manually.
+                </p>
               </div>
             )}
           </div>
@@ -488,7 +538,10 @@ export function ShopClient({
         <div className="empty-state">
           <X aria-hidden="true" size={28} />
           <h2>No shopping list yet</h2>
-          <p>Generate from the next 14 days of planned dinners, then edit the list as needed.</p>
+          <p>
+            Generate from the next 14 days of planned dinners, then edit the
+            list as needed.
+          </p>
         </div>
       )}
     </div>
