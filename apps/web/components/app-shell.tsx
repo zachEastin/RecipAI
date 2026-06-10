@@ -4,7 +4,7 @@ import {
   ChefHat,
   Settings,
   ShoppingBasket,
-  type LucideIcon
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -21,12 +21,12 @@ const navItems: Array<{
   { key: "plan", label: "Plan", href: "/plan", icon: CalendarDays },
   { key: "shop", label: "Shop", href: "/shop", icon: ShoppingBasket },
   { key: "cook", label: "Cook", href: "/cook", icon: ChefHat },
-  { key: "settings", label: "Settings", href: "/settings", icon: Settings }
+  { key: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function AppShell({
   active,
-  children
+  children,
 }: {
   active: NavKey;
   children: ReactNode;
@@ -34,14 +34,7 @@ export function AppShell({
   return (
     <div className="app-shell">
       <header className="top-bar">
-        <div>
-          <p className="eyebrow">Local kitchen</p>
-          <h1>RecipAI</h1>
-        </div>
-        <div className="local-status">
-          <span aria-hidden="true" />
-          Local
-        </div>
+        <h1>RecipAI</h1>
       </header>
       <main className="main-content">{children}</main>
       <nav className="bottom-nav" aria-label="Primary navigation">

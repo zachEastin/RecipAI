@@ -1,6 +1,15 @@
 "use client";
 
-import { ChefHat, Heart, Plus, Search, Star, X } from "lucide-react";
+import {
+  ChefHat,
+  Heart,
+  Pencil,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Star,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -9,10 +18,15 @@ import type { Recipe } from "@recipai/recipes";
 import { Button } from "../ui";
 import { filterRecipes } from "./recipe-filters";
 
-export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) {
+export function LibraryClient({
+  initialRecipes,
+}: {
+  initialRecipes: Recipe[];
+}) {
   const [recipes, setRecipes] = useState(initialRecipes);
   const [query, setQuery] = useState("");
   const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [areFiltersOpen, setAreFiltersOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState("all");
   const [minRating, setMinRating] = useState(0);
   const [recentOnly, setRecentOnly] = useState(false);
@@ -47,7 +61,10 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
   }, [recipes]);
 
   const ingredientOptions = useMemo(
-    () => availableIngredients.filter((ingredient) => !selectedIngredients.includes(ingredient)),
+    () =>
+      availableIngredients.filter(
+        (ingredient) => !selectedIngredients.includes(ingredient),
+      ),
     [availableIngredients, selectedIngredients],
   );
 
@@ -59,7 +76,7 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
       query,
       recentOnly,
       selectedIngredients,
-      tagFilter
+      tagFilter,
     });
   }, [
     favoriteOnly,
@@ -69,7 +86,7 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
     recentOnly,
     recipes,
     selectedIngredients,
-    tagFilter
+    tagFilter,
   ]);
 
   function addIngredientFilter(ingredient: string) {
@@ -84,7 +101,9 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
   }
 
   function removeIngredientFilter(ingredient: string) {
-    setSelectedIngredients((current) => current.filter((item) => item !== ingredient));
+    setSelectedIngredients((current) =>
+      current.filter((item) => item !== ingredient),
+    );
   }
 
   function clearFilters() {
@@ -96,15 +115,24 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
     setIngredientThreshold(1);
   }
 
+  const activeFilterCount =
+    (favoriteOnly ? 1 : 0) +
+    (recentOnly ? 1 : 0) +
+    (tagFilter !== "all" ? 1 : 0) +
+    (minRating > 0 ? 1 : 0) +
+    selectedIngredients.length;
+
   async function updateFavorite(recipe: Recipe) {
     const response = await fetch(`/api/recipes/${recipe.id}/favorite`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favorite: !recipe.favorite })
+      body: JSON.stringify({ favorite: !recipe.favorite }),
     });
     const payload = (await response.json()) as { recipe: Recipe };
     setRecipes((current) =>
-      current.map((item) => (item.id === payload.recipe.id ? payload.recipe : item)),
+      current.map((item) =>
+        item.id === payload.recipe.id ? payload.recipe : item,
+      ),
     );
   }
 
@@ -112,18 +140,23 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
     const response = await fetch(`/api/recipes/${recipe.id}/rating`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rating })
+      body: JSON.stringify({ rating }),
     });
     const payload = (await response.json()) as { recipe: Recipe };
     setRecipes((current) =>
-      current.map((item) => (item.id === payload.recipe.id ? payload.recipe : item)),
+      current.map((item) =>
+        item.id === payload.recipe.id ? payload.recipe : item,
+      ),
     );
   }
 
   return (
     <div className="screen-stack">
       <div className="library-toolbar">
-        <form className="search-form" onSubmit={(event) => event.preventDefault()}>
+        <form
+          className="search-form"
+          onSubmit={(event) => event.preventDefault()}
+        >
           <Search aria-hidden="true" size={18} />
           <input
             aria-label="Search recipes"
@@ -132,11 +165,37 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
             value={query}
           />
         </form>
-        <Link className="icon-action" href="/library/add" aria-label="Add recipe">
+        <Link
+          className="icon-action"
+          href="/library/add"
+          aria-label="Add recipe"
+        >
           <Plus aria-hidden="true" size={22} />
         </Link>
+        <button
+          aria-controls="recipe-filters"
+          aria-expanded={areFiltersOpen}
+          className={
+            activeFilterCount > 0
+              ? "filter-toggle filter-toggle-active"
+              : "filter-toggle"
+          }
+          onClick={() => setAreFiltersOpen((value) => !value)}
+          type="button"
+        >
+          <SlidersHorizontal aria-hidden="true" size={18} />
+          {activeFilterCount > 0 ? activeFilterCount : "Filters"}
+        </button>
       </div>
-      <div className="filter-bar" aria-label="Recipe filters">
+      <div
+        className={
+          areFiltersOpen || activeFilterCount > 0
+            ? "filter-bar"
+            : "filter-bar filter-bar-closed"
+        }
+        id="recipe-filters"
+        aria-label="Recipe filters"
+      >
         <button
           aria-pressed={favoriteOnly}
           onClick={() => setFavoriteOnly((value) => !value)}
@@ -153,7 +212,10 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
         </button>
         <label>
           Tag
-          <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
+          <select
+            onChange={(event) => setTagFilter(event.target.value)}
+            value={tagFilter}
+          >
             <option value="all">All</option>
             {availableTags.map((tag) => (
               <option key={tag} value={tag}>
@@ -167,7 +229,9 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
             Match
             <select
               aria-label="Ingredient match threshold"
-              onChange={(event) => setIngredientThreshold(Number(event.target.value))}
+              onChange={(event) =>
+                setIngredientThreshold(Number(event.target.value))
+              }
               value={Math.min(ingredientThreshold, selectedIngredients.length)}
             >
               {selectedIngredients.map((ingredient, index) => (
@@ -217,7 +281,10 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
       </div>
 
       {selectedIngredients.length > 0 ? (
-        <div className="selected-filter-row" aria-label="Selected ingredient filters">
+        <div
+          className="selected-filter-row"
+          aria-label="Selected ingredient filters"
+        >
           {selectedIngredients.map((ingredient) => (
             <button
               aria-label={`Remove ${ingredient}`}
@@ -249,41 +316,60 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
               </div>
               {selectedIngredients.length > 0 ? (
                 <div className="ingredient-match-badge">
-                  {ingredientMatchCount}/{selectedIngredients.length} ingredients
+                  {ingredientMatchCount}/{selectedIngredients.length}{" "}
+                  ingredients
                 </div>
               ) : null}
             </Link>
             <div className="library-card-actions">
-              <button
-                aria-label={recipe.favorite ? "Remove favorite" : "Add favorite"}
-                className={recipe.favorite ? "icon-toggle icon-toggle-active" : "icon-toggle"}
-                onClick={() => void updateFavorite(recipe)}
-                type="button"
+              <Link
+                className="text-link text-link-primary"
+                href={`/cook?recipeId=${recipe.id}`}
               >
-                <Heart aria-hidden="true" fill={recipe.favorite ? "currentColor" : "none"} />
-              </button>
-              <div className="rating-control" aria-label={`${recipe.rating} star rating`}>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    aria-label={`Rate ${rating}`}
-                    key={rating}
-                    onClick={() => void updateRating(recipe, rating)}
-                    type="button"
-                  >
-                    <Star
-                      aria-hidden="true"
-                      fill={rating <= recipe.rating ? "currentColor" : "none"}
-                      size={17}
-                    />
-                  </button>
-                ))}
-              </div>
-              <Link className="text-link" href={`/cook?recipeId=${recipe.id}`}>
                 <ChefHat aria-hidden="true" size={16} />
                 Cook
               </Link>
-              <Link className="text-link" href={`/library/${recipe.id}/edit`}>
-                Edit
+              <button
+                aria-label={
+                  recipe.favorite ? "Remove favorite" : "Add favorite"
+                }
+                className={
+                  recipe.favorite
+                    ? "icon-toggle icon-toggle-active"
+                    : "icon-toggle"
+                }
+                onClick={() => void updateFavorite(recipe)}
+                type="button"
+              >
+                <Heart
+                  aria-hidden="true"
+                  fill={recipe.favorite ? "currentColor" : "none"}
+                />
+              </button>
+              <button
+                aria-label={`${recipe.rating} star rating. Tap to increase rating.`}
+                className="rating-pill"
+                onClick={() =>
+                  void updateRating(
+                    recipe,
+                    recipe.rating >= 5 ? 0 : recipe.rating + 1,
+                  )
+                }
+                type="button"
+              >
+                <Star
+                  aria-hidden="true"
+                  fill={recipe.rating > 0 ? "currentColor" : "none"}
+                  size={16}
+                />
+                {recipe.rating}
+              </button>
+              <Link
+                className="icon-toggle"
+                href={`/library/${recipe.id}/edit`}
+                aria-label={`Edit ${recipe.title}`}
+              >
+                <Pencil aria-hidden="true" size={16} />
               </Link>
             </div>
           </article>
@@ -293,7 +379,9 @@ export function LibraryClient({ initialRecipes }: { initialRecipes: Recipe[] }) 
       {filteredRecipes.length === 0 ? (
         <div className="empty-state">
           <h2>No recipes found</h2>
-          <p>Try a different search, clear a filter, or add a recipe manually.</p>
+          <p>
+            Try a different search, clear a filter, or add a recipe manually.
+          </p>
           <Link href="/library/add">
             <Button>Add recipe</Button>
           </Link>

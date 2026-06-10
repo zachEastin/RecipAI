@@ -20,7 +20,12 @@ html {
   background: var(--background);
   color: var(--text);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
 }
 
@@ -47,7 +52,11 @@ button {
   margin: 0 auto;
   width: 100%;
   background:
-    linear-gradient(180deg, rgba(226, 241, 232, 0.72), rgba(247, 250, 247, 0) 260px),
+    linear-gradient(
+      180deg,
+      rgba(226, 241, 232, 0.72),
+      rgba(247, 250, 247, 0) 260px
+    ),
     var(--background);
   position: relative;
   overflow: hidden;
@@ -57,7 +66,7 @@ button {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  padding: 18px 18px 8px;
+  padding: 14px 18px 6px;
 }
 
 .top-bar h1,
@@ -71,7 +80,7 @@ button {
 }
 
 .top-bar h1 {
-  font-size: 1.55rem;
+  font-size: 1.32rem;
   line-height: 1.1;
 }
 
@@ -107,7 +116,7 @@ button {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 12px 16px 22px;
+  padding: 10px 16px 22px;
 }
 
 .screen-stack {
@@ -345,7 +354,7 @@ button {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
 }
 
 .search-form {
@@ -400,6 +409,27 @@ button {
   height: 46px;
   justify-content: center;
   width: 46px;
+}
+
+.filter-toggle {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--primary);
+  display: inline-flex;
+  font-weight: 900;
+  gap: 7px;
+  height: 46px;
+  justify-content: center;
+  min-width: 46px;
+  padding: 0 12px;
+}
+
+.filter-toggle-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
 }
 
 .library-secondary-actions {
@@ -1268,6 +1298,10 @@ button {
   width: 100%;
 }
 
+.filter-bar-closed {
+  display: none;
+}
+
 .filter-bar button,
 .filter-bar label {
   align-items: center;
@@ -1358,14 +1392,14 @@ button {
   border-radius: 8px;
   box-shadow: var(--shadow);
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 13px;
 }
 
 .library-card-main {
   color: inherit;
   display: grid;
-  gap: 8px;
+  gap: 7px;
   text-decoration: none;
 }
 
@@ -1375,22 +1409,23 @@ button {
 }
 
 .library-card-main h2 {
-  font-size: 1.08rem;
+  font-size: 1.04rem;
   line-height: 1.2;
 }
 
 .library-card-main p {
   color: var(--muted);
-  line-height: 1.4;
+  font-size: 0.95rem;
+  line-height: 1.35;
 }
 
 .library-card-actions {
   align-items: center;
   border-top: 1px solid var(--border);
   display: grid;
-  gap: 10px;
-  grid-template-columns: auto 1fr auto auto;
-  padding-top: 11px;
+  gap: 8px;
+  grid-template-columns: minmax(96px, 1fr) auto auto auto;
+  padding-top: 9px;
 }
 
 .icon-toggle {
@@ -1422,6 +1457,30 @@ button {
   border: 0;
   color: var(--accent);
   padding: 5px 3px;
+}
+
+.rating-pill {
+  align-items: center;
+  background: #fff7f5;
+  border: 1px solid #f3c7bd;
+  border-radius: 8px;
+  color: var(--accent);
+  display: inline-flex;
+  font-weight: 900;
+  gap: 5px;
+  height: 38px;
+  justify-content: center;
+  min-width: 48px;
+  padding: 0 10px;
+}
+
+.text-link-primary {
+  background: var(--primary);
+  border-radius: 8px;
+  color: #ffffff;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 12px;
 }
 
 .recipe-card {
@@ -2451,7 +2510,10 @@ button {
 .shop-item-grid {
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(54px, 0.5fr) minmax(56px, 0.55fr) minmax(0, 1.55fr);
+  grid-template-columns: minmax(54px, 0.5fr) minmax(56px, 0.55fr) minmax(
+      0,
+      1.55fr
+    );
 }
 
 .shop-item-grid input {
@@ -2589,9 +2651,9 @@ button {
     display: none !important;
   }
 
-.shopping-summary,
-.shopping-group,
-.shopping-item {
+  .shopping-summary,
+  .shopping-group,
+  .shopping-item {
     box-shadow: none !important;
   }
 }
