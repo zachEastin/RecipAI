@@ -100,7 +100,7 @@ describe("recipe image API routes", () => {
     expect(existsSync(join(tempDir, "images", storedFilename(payload.imageUrl)))).toBe(true);
   });
 
-  it("falls back to Pexels image suggestions when MealDB has none", async () => {
+  it("returns MealDB and Pexels image suggestions when both are available", async () => {
     process.env.PEXELS_API_KEY = "pexels-key";
     vi.stubGlobal(
       "fetch",
@@ -108,7 +108,16 @@ describe("recipe image API routes", () => {
         const url = String(input);
 
         if (url.includes("themealdb.com")) {
-          return Response.json({ meals: [] });
+          return Response.json({
+            meals: [
+              {
+                idMeal: "52772",
+                strMeal: "Chicken Pasta",
+                strMealThumb: "https://www.themealdb.com/chicken.jpg",
+                strSource: "https://www.themealdb.com/meal"
+              }
+            ]
+          });
         }
 
         return Response.json({
@@ -132,10 +141,17 @@ describe("recipe image API routes", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload.images[0]).toMatchObject({
-      id: "pexels-123",
-      source: "pexels",
-      sourceLabel: "Pexels · A Cook"
-    });
+    expect(payload.images).toEqual([
+      expect.objectContaining({
+        id: "mealdb-52772",
+        source: "mealdb",
+        sourceLabel: "TheMealDB"
+      }),
+      expect.objectContaining({
+        id: "pexels-123",
+        source: "pexels",
+        sourceLabel: "Pexels · A Cook"
+      })
+    ]);
   });
 });

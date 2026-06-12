@@ -176,6 +176,7 @@ export async function readStoredRecipeImage(filename: string): Promise<{
 }
 
 function mealDbUrl(path: string, params: Record<string, string>): URL {
+  loadLocalEnv();
   const key = process.env.THEMEALDB_API_KEY?.trim() || "1";
   const url = new URL(`https://www.themealdb.com/api/json/v1/${key}/${path}`);
 
@@ -212,6 +213,7 @@ async function searchMealDbImages(query: string): Promise<RecipeImageSuggestion[
 }
 
 async function searchPexelsImages(query: string): Promise<RecipeImageSuggestion[]> {
+  loadLocalEnv();
   const apiKey = process.env.PEXELS_API_KEY?.trim();
 
   if (!apiKey) {
@@ -249,12 +251,10 @@ export async function searchRecipeImageSuggestions(query: string): Promise<Recip
     return [];
   }
 
-  const mealDbSuggestions = await searchMealDbImages(trimmed);
+  const [mealDbSuggestions, pexelsSuggestions] = await Promise.all([
+    searchMealDbImages(trimmed),
+    searchPexelsImages(trimmed)
+  ]);
 
-  if (mealDbSuggestions.length >= 8) {
-    return mealDbSuggestions;
-  }
-
-  const pexelsSuggestions = await searchPexelsImages(trimmed);
   return [...mealDbSuggestions, ...pexelsSuggestions].slice(0, 12);
 }
