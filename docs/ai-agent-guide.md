@@ -10,6 +10,7 @@ Use this file before making changes.
 - Do not put business logic directly in screen components when it belongs in a package.
 - Do not build a generic chatbot UI unless the product direction changes.
 - Preserve mobile-first UX and bottom navigation.
+- When adding or changing environment variables, keep Docker deployment config in sync. Update `docker-compose.yaml` environment passthrough and the Docker build/runtime setup as needed so container deployments receive the same required variables as local development.
 
 ## Completion Checks
 

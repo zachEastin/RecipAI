@@ -11,6 +11,8 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      THEMEALDB_API_KEY: ${THEMEALDB_API_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
     volumes:
       - recipai-data:/app/data
     command: npm --workspace @recipai/web run start -- --hostname 0.0.0.0
