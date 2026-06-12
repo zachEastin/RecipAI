@@ -3,9 +3,24 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Camera, ImageIcon, Link as LinkIcon, Search, Trash2, Upload, X } from "lucide-react";
+import {
+  Bot,
+  Camera,
+  Check,
+  Clipboard,
+  ClipboardPaste,
+  Copy,
+  ImageIcon,
+  Link as LinkIcon,
+  Search,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 
-import { MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
+import { aiStructuredResultSchema, type AiStructuredResult, type RecipeResult } from "@recipai/ai";
+import { inferRecipeMealSlots, MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
 
 import {
   parseIngredientLine,
@@ -59,6 +74,19 @@ type ImageSuggestion = {
   sourceLabel: string;
   sourceUrl: string | null;
   title: string;
+};
+
+type ImportedRecipePreview = {
+  current: EditorState;
+  draft: EditorState;
+  result: AiStructuredResult;
+};
+
+type PreviewField = {
+  current: string | string[];
+  imported: string | string[];
+  key: string;
+  label: string;
 };
 
 const COMMON_UNITS = [
@@ -128,6 +156,92 @@ function saveIngredientFromRow(row: IngredientRow) {
     note: row.note.trim() || null,
     groceryCategory: "Other",
   };
+}
+
+function splitTotalMinutes(totalMinutes: number): {
+  cookMinutes: number;
+  prepMinutes: number;
+} {
+  const prepMinutes = Math.min(20, Math.max(0, Math.round(totalMinutes * 0.25)));
+
+  return {
+    cookMinutes: Math.max(0, totalMinutes - prepMinutes),
+    prepMinutes,
+  };
+}
+
+function formatIngredientLine(ingredient: RecipeResult["ingredients"][number]) {
+  return [
+    ingredient.quantity ?? "",
+    ingredient.unit ?? "",
+    ingredient.name,
+    ingredient.note ? `(${ingredient.note})` : "",
+  ]
+    .map((part) => String(part).trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function recipeResultFromAiResult(result: AiStructuredResult): RecipeResult {
+  return result.type === "recipe-modification-result" ? result.updatedRecipe : result;
+}
+
+function stateFromAiResult(
+  result: AiStructuredResult,
+  current: EditorState,
+): EditorState {
+  const recipeResult = recipeResultFromAiResult(result);
+  const { cookMinutes, prepMinutes } = splitTotalMinutes(recipeResult.totalMinutes);
+
+  return {
+    title: recipeResult.title,
+    summary: recipeResult.summary,
+    source: current.source,
+    servings: String(recipeResult.servings),
+    prepMinutes: String(prepMinutes),
+    cookMinutes: String(cookMinutes),
+    imageUrl: current.imageUrl,
+    mealSlots: Object.fromEntries(
+      MEAL_SLOTS.map((slot) => [
+        slot,
+        inferRecipeMealSlots(recipeResult).includes(slot),
+      ]),
+    ) as Record<MealSlot, boolean>,
+    tags: recipeResult.tags.join(", "),
+    ingredients: recipeResult.ingredients.map(formatIngredientLine).join("\n"),
+    steps: recipeResult.steps.map((step) => step.body).join("\n"),
+  };
+}
+
+function extractJsonFromClipboardText(text: string): unknown {
+  const trimmed = text.trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+
+    if (fenced?.[1]) {
+      return JSON.parse(fenced[1]);
+    }
+
+    const firstBrace = trimmed.indexOf("{");
+    const lastBrace = trimmed.lastIndexOf("}");
+
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+    }
+
+    throw new Error("Clipboard does not contain a JSON recipe result.");
+  }
+}
+
+function normalizePreviewValue(value: string | string[]): string {
+  return Array.isArray(value) ? value.join("\n") : value;
+}
+
+function previewValueChanged(current: string | string[], imported: string | string[]) {
+  return normalizePreviewValue(current).trim() !== normalizePreviewValue(imported).trim();
 }
 
 function EditableIngredientCell({
@@ -200,6 +314,43 @@ function stateFromRecipe(
   };
 }
 
+function buildRecipePayload(
+  state: EditorState,
+  ingredientRows: IngredientRow[],
+  recipe?: Recipe,
+  initialDraft?: RecipeEditorDraft,
+  imported = false,
+) {
+  return {
+    id: recipe?.id,
+    title: state.title,
+    summary: state.summary,
+    source: state.source || null,
+    servings: Number(state.servings),
+    prepMinutes: Number(state.prepMinutes),
+    cookMinutes: Number(state.cookMinutes),
+    mealSlots: MEAL_SLOTS.filter((slot) => state.mealSlots[slot]),
+    rating: imported ? 0 : (recipe?.rating ?? 0),
+    tags: state.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    favorite: imported ? false : (recipe?.favorite ?? false),
+    imageUrl: state.imageUrl,
+    provenance: imported
+      ? "ai-generated"
+      : (recipe?.provenance ?? initialDraft?.provenance ?? "manual"),
+    ingredients: ingredientRows
+      .filter((row) => row.name.trim())
+      .map(saveIngredientFromRow),
+    steps: state.steps
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((body) => ({ body, timerMinutes: null })),
+  };
+}
+
 export function RecipeEditor({
   initialDraft,
   recipe,
@@ -228,7 +379,14 @@ export function RecipeEditor({
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiPromptChanges, setAiPromptChanges] = useState("");
+  const [aiImportError, setAiImportError] = useState<string | null>(null);
+  const [aiImportPreview, setAiImportPreview] =
+    useState<ImportedRecipePreview | null>(null);
+  const [isAiHelperOpen, setIsAiHelperOpen] = useState(false);
+  const [isImportSaving, setIsImportSaving] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   function update(key: keyof EditorState, value: string) {
     setState((current) => ({ ...current, [key]: value }));
@@ -313,6 +471,218 @@ export function RecipeEditor({
       ...current,
       mealSlots: { ...current.mealSlots, [mealSlot]: checked },
     }));
+  }
+
+  function showToast(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 2600);
+  }
+
+  function currentEditorState() {
+    if (ingredientMode === "structured") {
+      return {
+        ...state,
+        ingredients: ingredientTextFromRows(ingredientRows),
+      };
+    }
+
+    return state;
+  }
+
+  function currentIngredientRows() {
+    return ingredientMode === "structured"
+      ? ingredientRows
+      : ingredientRowsFromText(state.ingredients);
+  }
+
+  function buildManualAiPrompt() {
+    const currentState = currentEditorState();
+    const recipeForAi = {
+      title: currentState.title,
+      summary: currentState.summary,
+      source: currentState.source || null,
+      servings: Number(currentState.servings),
+      prepMinutes: Number(currentState.prepMinutes),
+      cookMinutes: Number(currentState.cookMinutes),
+      mealSlots: MEAL_SLOTS.filter((slot) => currentState.mealSlots[slot]),
+      tags: currentState.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      ingredients: currentState.ingredients
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+      steps: currentState.steps
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    };
+
+    return [
+      "You are improving a recipe for a recipe app.",
+      "Make this a fuller, clearer recipe while keeping the spirit of the current recipe unless my requested changes say otherwise.",
+      aiPromptChanges.trim()
+        ? `Requested changes: ${aiPromptChanges.trim()}`
+        : "Requested changes: make the recipe fuller with clearer ingredients, steps, timing, and useful tags.",
+      "Return only one fenced json code block. Do not add prose before or after it.",
+      "Use this exact JSON shape:",
+      "```json",
+      JSON.stringify(
+        {
+          type: "recipe-modification-result",
+          title: "string",
+          changeSummary: ["string"],
+          servingImpact: "string",
+          timeImpact: "string",
+          updatedRecipe: {
+            type: "recipe-result",
+            title: "string",
+            summary: "string",
+            servings: 4,
+            totalMinutes: 30,
+            difficulty: "easy",
+            tags: ["weeknight"],
+            ingredients: [
+              {
+                quantity: 1,
+                unit: "lb",
+                name: "ingredient name",
+                note: null,
+              },
+            ],
+            steps: [{ body: "Step instructions.", timerMinutes: null }],
+            tips: ["string"],
+            substitutions: ["string"],
+          },
+        },
+        null,
+        2,
+      ),
+      "```",
+      "Current recipe:",
+      "```json",
+      JSON.stringify(recipeForAi, null, 2),
+      "```",
+    ].join("\n\n");
+  }
+
+  async function copyManualAiPrompt() {
+    setAiImportError(null);
+    const prompt = buildManualAiPrompt();
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+      showToast("AI prompt copied.");
+    } catch {
+      const copyTarget = document.createElement("textarea");
+      copyTarget.value = prompt;
+      copyTarget.setAttribute("readonly", "");
+      copyTarget.style.left = "-9999px";
+      copyTarget.style.position = "fixed";
+      document.body.append(copyTarget);
+      copyTarget.select();
+      const didCopy = document.execCommand("copy");
+      copyTarget.remove();
+
+      if (didCopy) {
+        showToast("AI prompt copied.");
+      } else {
+        setAiImportError(
+          "Clipboard access is blocked. Select and copy the prompt manually.",
+        );
+      }
+    }
+  }
+
+  async function importManualAiResult() {
+    setAiImportError(null);
+
+    try {
+      const text = await navigator.clipboard.readText();
+
+      if (!text.trim()) {
+        throw new Error("Clipboard is empty.");
+      }
+
+      const currentDraft = currentEditorState();
+      const parsed = aiStructuredResultSchema.parse(extractJsonFromClipboardText(text));
+      const nextDraft = stateFromAiResult(parsed, currentDraft);
+      setAiImportPreview({ current: currentDraft, draft: nextDraft, result: parsed });
+      setState(nextDraft);
+      setIngredientRows(ingredientRowsFromText(nextDraft.ingredients));
+      setIngredientMode("text");
+      showToast("AI recipe imported for review.");
+    } catch (caught) {
+      setAiImportError(
+        caught instanceof Error
+          ? caught.message
+          : "Clipboard did not contain a valid AI recipe.",
+      );
+    }
+  }
+
+  async function saveImportedRecipe(mode: "new" | "override") {
+    if (!aiImportPreview) {
+      return;
+    }
+
+    setAiImportError(null);
+    setIsImportSaving(true);
+
+    const draftRows = ingredientRowsFromText(aiImportPreview.draft.ingredients);
+    const payload = buildRecipePayload(
+      aiImportPreview.draft,
+      draftRows,
+      mode === "override" ? recipe : undefined,
+      initialDraft,
+      true,
+    );
+
+    try {
+      const replacing = mode === "override" && recipe;
+      const response = await fetch(
+        replacing ? `/api/recipes/${recipe.id}` : "/api/recipes",
+        {
+          method: replacing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            replacing ? payload : { ...payload, id: undefined },
+          ),
+        },
+      );
+      const body = (await response.json()) as {
+        recipe?: Recipe;
+        error?: string;
+      };
+
+      if (!response.ok || !body.recipe) {
+        throw new Error(body.error ?? "Imported recipe could not be saved.");
+      }
+
+      router.push(`/library/${body.recipe.id}`);
+      router.refresh();
+    } catch (caught) {
+      setAiImportError(
+        caught instanceof Error
+          ? caught.message
+          : "Imported recipe could not be saved.",
+      );
+    } finally {
+      setIsImportSaving(false);
+    }
+  }
+
+  function closeAiHelper() {
+    if (aiImportPreview) {
+      setState(aiImportPreview.current);
+      setIngredientRows(ingredientRowsFromText(aiImportPreview.current.ingredients));
+      setIngredientMode("text");
+    }
+
+    setIsAiHelperOpen(false);
+    setAiImportError(null);
+    setAiImportPreview(null);
   }
 
   async function uploadImageFile(file: File | undefined) {
@@ -435,32 +805,13 @@ export function RecipeEditor({
     setError(null);
     setIsSaving(true);
 
-    const payload = {
-      id: recipe?.id,
-      title: state.title,
-      summary: state.summary,
-      source: state.source || null,
-      servings: Number(state.servings),
-      prepMinutes: Number(state.prepMinutes),
-      cookMinutes: Number(state.cookMinutes),
-      mealSlots: MEAL_SLOTS.filter((slot) => state.mealSlots[slot]),
-      rating: recipe?.rating ?? 0,
-      tags: state.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      favorite: recipe?.favorite ?? false,
-      imageUrl: state.imageUrl,
-      provenance: recipe?.provenance ?? initialDraft?.provenance ?? "manual",
-      ingredients: ingredientRows
-        .filter((row) => row.name.trim())
-        .map(saveIngredientFromRow),
-      steps: state.steps
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((body) => ({ body, timerMinutes: null })),
-    };
+    const currentState = currentEditorState();
+    const payload = buildRecipePayload(
+      currentState,
+      currentIngredientRows(),
+      recipe,
+      initialDraft,
+    );
 
     try {
       const response = await fetch(
@@ -491,7 +842,49 @@ export function RecipeEditor({
     }
   }
 
+  const previewFields: PreviewField[] = aiImportPreview
+    ? [
+        {
+          current: aiImportPreview.current.title,
+          imported: aiImportPreview.draft.title,
+          key: "title",
+          label: "Title",
+        },
+        {
+          current: aiImportPreview.current.summary,
+          imported: aiImportPreview.draft.summary,
+          key: "summary",
+          label: "Summary",
+        },
+        {
+          current: `${aiImportPreview.current.prepMinutes} prep, ${aiImportPreview.current.cookMinutes} cook, ${aiImportPreview.current.servings} servings`,
+          imported: `${aiImportPreview.draft.prepMinutes} prep, ${aiImportPreview.draft.cookMinutes} cook, ${aiImportPreview.draft.servings} servings`,
+          key: "timing",
+          label: "Timing",
+        },
+        {
+          current: aiImportPreview.current.tags,
+          imported: aiImportPreview.draft.tags,
+          key: "tags",
+          label: "Tags",
+        },
+        {
+          current: aiImportPreview.current.ingredients.split("\n").filter(Boolean),
+          imported: aiImportPreview.draft.ingredients.split("\n").filter(Boolean),
+          key: "ingredients",
+          label: "Ingredients",
+        },
+        {
+          current: aiImportPreview.current.steps.split("\n").filter(Boolean),
+          imported: aiImportPreview.draft.steps.split("\n").filter(Boolean),
+          key: "steps",
+          label: "Steps",
+        },
+      ]
+    : [];
+
   return (
+    <>
     <form className="editor-form" onSubmit={submit}>
       {error ? (
         <div className="error-panel">
@@ -845,9 +1238,168 @@ export function RecipeEditor({
           onChange={(event) => update("steps", event.target.value)}
         />
       </label>
+      <section className="manual-ai-panel" aria-label="AI recipe expansion">
+        <div>
+          <p className="result-label">Manual AI helper</p>
+          <h3>Expand with ChatGPT</h3>
+        </div>
+        <Button
+          onClick={() => setIsAiHelperOpen(true)}
+          type="button"
+          variant="secondary"
+        >
+          <Bot aria-hidden="true" size={18} />
+          Open helper
+        </Button>
+      </section>
       <Button className="full-width" disabled={isSaving} type="submit">
         {isSaving ? "Saving..." : "Save recipe"}
       </Button>
     </form>
+    {isAiHelperOpen ? (
+      <div
+        className="recipe-picker-backdrop ai-import-backdrop"
+        onClick={closeAiHelper}
+        role="presentation"
+      >
+        <section
+          aria-labelledby="ai-import-title"
+          aria-modal="true"
+          className="ai-import-sheet"
+          onClick={(event) => event.stopPropagation()}
+          role="dialog"
+        >
+          <div className="recipe-picker-header ai-import-header">
+            <div>
+              <p className="result-label">Manual AI helper</p>
+              <h2 id="ai-import-title">Expand recipe with AI</h2>
+              <p>Copy a prompt, run it in any AI chat, then copy the JSON result back here.</p>
+            </div>
+            <button
+              aria-label="Close AI import helper"
+              className="icon-toggle"
+              onClick={closeAiHelper}
+              type="button"
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+          </div>
+
+          {aiImportError ? (
+            <div className="error-panel">
+              <strong>Import failed</strong>
+              <p>{aiImportError}</p>
+            </div>
+          ) : null}
+
+          <label className="ai-import-change-field">
+            Desired changes
+            <textarea
+              onChange={(event) => setAiPromptChanges(event.target.value)}
+              placeholder="Make it more detailed, double the sauce, add grill instructions..."
+              rows={4}
+              value={aiPromptChanges}
+            />
+          </label>
+
+          <div className="ai-import-actions">
+            <Button onClick={() => void copyManualAiPrompt()} type="button">
+              <Copy aria-hidden="true" size={17} />
+              Copy prompt
+            </Button>
+            <Button
+              onClick={() => void importManualAiResult()}
+              type="button"
+              variant="secondary"
+            >
+              <ClipboardPaste aria-hidden="true" size={17} />
+              Import clipboard
+            </Button>
+          </div>
+
+          <details className="ai-prompt-preview">
+            <summary>
+              <Clipboard aria-hidden="true" size={16} />
+              Prompt preview
+            </summary>
+            <textarea readOnly rows={10} value={buildManualAiPrompt()} />
+          </details>
+
+          {aiImportPreview ? (
+            <section className="ai-import-preview" aria-label="Imported recipe preview">
+              <div className="ai-import-preview-heading">
+                <Sparkles aria-hidden="true" size={18} />
+                <div>
+                  <h3>{aiImportPreview.draft.title}</h3>
+                  <p>
+                    {aiImportPreview.result.type === "recipe-modification-result"
+                      ? aiImportPreview.result.changeSummary.join(" ")
+                      : "Imported recipe is ready to save."}
+                  </p>
+                </div>
+              </div>
+              <div className="ai-diff-list">
+                {previewFields.map((field) => {
+                  const changed = previewValueChanged(field.current, field.imported);
+
+                  return (
+                    <article
+                      className={changed ? "ai-diff-row ai-diff-row-changed" : "ai-diff-row"}
+                      key={field.key}
+                    >
+                      <h4>
+                        {changed ? <Check aria-hidden="true" size={15} /> : null}
+                        {field.label}
+                      </h4>
+                      <div className="ai-diff-columns">
+                        <div>
+                          <span>Current</span>
+                          <pre>{normalizePreviewValue(field.current) || "--"}</pre>
+                        </div>
+                        <div>
+                          <span>Imported</span>
+                          <pre>{normalizePreviewValue(field.imported) || "--"}</pre>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="ai-save-options">
+                <Button
+                  disabled={isImportSaving}
+                  onClick={() => void saveImportedRecipe("override")}
+                  type="button"
+                >
+                  Override
+                </Button>
+                <Button
+                  disabled={isImportSaving}
+                  onClick={() => void saveImportedRecipe("new")}
+                  type="button"
+                  variant="secondary"
+                >
+                  Save as new
+                </Button>
+                <Button
+                  disabled={isImportSaving}
+                  onClick={closeAiHelper}
+                  type="button"
+                  variant="ghost"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </section>
+          ) : null}
+        </section>
+      </div>
+    ) : null}
+    {toast ? (
+      <div className="toast-notice" role="status">
+        {toast}
+      </div>
+    ) : null}
+    </>
   );
 }
