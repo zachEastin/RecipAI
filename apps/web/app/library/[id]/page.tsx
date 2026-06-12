@@ -7,6 +7,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -33,20 +34,39 @@ export default async function RecipeDetailPage({
     <AppShell active="library">
       <article className="recipe-detail screen-stack">
         <header className="detail-hero">
-          <div>
-            <div className="detail-flags">
-              {recipe.favorite ? (
-                <span aria-label="Favorite">
-                  <Heart aria-hidden="true" fill="currentColor" size={14} />
+          <div
+            className={
+              recipe.imageUrl
+                ? "detail-hero-main"
+                : "detail-hero-main detail-hero-main-no-image"
+            }
+          >
+            {recipe.imageUrl ? (
+              <Image
+                alt=""
+                className="detail-hero-thumbnail"
+                height={118}
+                priority
+                src={recipe.imageUrl}
+                unoptimized
+                width={118}
+              />
+            ) : null}
+            <div>
+              <div className="detail-flags">
+                {recipe.favorite ? (
+                  <span aria-label="Favorite">
+                    <Heart aria-hidden="true" fill="currentColor" size={14} />
+                  </span>
+                ) : null}
+                <span aria-label={`${recipe.rating} star rating`}>
+                  <Star aria-hidden="true" fill="currentColor" size={14} />
+                  {recipe.rating}
                 </span>
-              ) : null}
-              <span aria-label={`${recipe.rating} star rating`}>
-                <Star aria-hidden="true" fill="currentColor" size={14} />
-                {recipe.rating}
-              </span>
+              </div>
+              <h2>{recipe.title}</h2>
+              <p>{recipe.summary}</p>
             </div>
-            <h2>{recipe.title}</h2>
-            <p>{recipe.summary}</p>
           </div>
           <div className="detail-actions">
             <Link

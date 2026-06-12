@@ -1,4 +1,5 @@
 import { Clock, Star, Users } from "lucide-react";
+import Image from "next/image";
 
 import type { Recipe } from "@recipai/recipes";
 
@@ -15,6 +16,16 @@ export function RecipeCard({
 
   return (
     <article className={compact ? "recipe-card recipe-card-compact" : "recipe-card"}>
+      {recipe.imageUrl ? (
+        <Image
+          alt=""
+          className="recipe-card-thumbnail"
+          height={150}
+          src={recipe.imageUrl}
+          unoptimized
+          width={300}
+        />
+      ) : null}
       <div className="recipe-card-header">
         <div>
           <h3>{recipe.title}</h3>

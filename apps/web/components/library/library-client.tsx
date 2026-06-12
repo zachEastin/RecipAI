@@ -10,6 +10,7 @@ import {
   Star,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -300,26 +301,46 @@ export function LibraryClient({
       ) : null}
 
       <div className="recipe-list">
-        {filteredRecipes.map(({ ingredientMatchCount, recipe }) => (
+        {filteredRecipes.map(({ ingredientMatchCount, recipe }, index) => (
           <article className="library-recipe-card" key={recipe.id}>
-            <Link className="library-card-main" href={`/library/${recipe.id}`}>
-              <h2>{recipe.title}</h2>
-              <p>{recipe.summary}</p>
-              <div className="meta-row">
-                <span>{recipe.prepMinutes + recipe.cookMinutes} min</span>
-                <span>{recipe.servings} servings</span>
-              </div>
-              <div className="tag-row">
-                {recipe.tags.slice(0, 3).map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-              {selectedIngredients.length > 0 ? (
-                <div className="ingredient-match-badge">
-                  {ingredientMatchCount}/{selectedIngredients.length}{" "}
-                  ingredients
-                </div>
+            <Link
+              className={
+                recipe.imageUrl
+                  ? "library-card-main"
+                  : "library-card-main library-card-main-no-image"
+              }
+              href={`/library/${recipe.id}`}
+            >
+              {recipe.imageUrl ? (
+                <Image
+                  alt=""
+                  className="library-card-thumbnail"
+                  height={88}
+                  priority={index === 0}
+                  src={recipe.imageUrl}
+                  unoptimized
+                  width={104}
+                />
               ) : null}
+              <div className="library-card-copy">
+                <h2>{recipe.title}</h2>
+                <p>{recipe.summary}</p>
+                <div className="meta-row">
+                  <span>{recipe.prepMinutes + recipe.cookMinutes} min</span>
+                  <span>{recipe.servings} servings</span>
+                </div>
+                <div className="tag-row">
+                  {recipe.tags.slice(0, 3).map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
+                {selectedIngredients.length > 0 ? (
+                  <div className="ingredient-match-badge">
+                    {ingredientMatchCount}/{selectedIngredients.length}{" "}
+                    ingredients
+                  </div>
+                ) : null}
+              </div>
             </Link>
             <div className="library-card-actions">
               <Link

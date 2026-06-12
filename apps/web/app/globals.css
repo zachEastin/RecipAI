@@ -1345,8 +1345,27 @@ button {
 .library-card-main {
   color: inherit;
   display: grid;
-  gap: 7px;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
   text-decoration: none;
+}
+
+.library-card-main-no-image {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.library-card-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.library-card-thumbnail {
+  aspect-ratio: 1.18 / 1;
+  border-radius: 8px;
+  height: 88px;
+  object-fit: cover;
+  width: 104px;
 }
 
 .library-card-main h2,
@@ -1433,6 +1452,14 @@ button {
   display: grid;
   gap: 12px;
   padding: 15px;
+}
+
+.recipe-card-thumbnail {
+  aspect-ratio: 2 / 1;
+  border-radius: 8px;
+  height: auto;
+  object-fit: cover;
+  width: 100%;
 }
 
 .ai-result-card {
@@ -3931,6 +3958,25 @@ button {
   display: grid;
   gap: 12px;
   padding: 13px;
+}
+
+.detail-hero-main {
+  align-items: flex-start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.detail-hero-main-no-image {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.detail-hero-thumbnail {
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  height: 118px;
+  object-fit: cover;
+  width: 118px;
 }
 
 .detail-hero h2,
