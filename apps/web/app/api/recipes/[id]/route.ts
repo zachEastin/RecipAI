@@ -45,7 +45,11 @@ export async function PUT(
       return NextResponse.json({ error: "Recipe not found." }, { status: 404 });
     }
 
-    const recipe = saveRecipe(db, { ...toSaveRecipeInput(parsed.data), id });
+    const recipe = saveRecipe(db, {
+      ...toSaveRecipeInput(parsed.data),
+      id,
+      imageUrl: parsed.data.imageUrl === undefined ? existing.imageUrl : parsed.data.imageUrl
+    });
     return NextResponse.json({ recipe });
   } finally {
     db.close();

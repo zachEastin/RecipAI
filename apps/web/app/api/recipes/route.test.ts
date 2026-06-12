@@ -46,15 +46,26 @@ afterEach(() => {
 
 describe("recipes API route", () => {
   it("creates recipes with explicit meal slots", async () => {
-    const response = await POST(request(recipePayload));
+    const response = await POST(
+      request({
+        ...recipePayload,
+        imageUrl: "/api/recipe-images/files/thumb.webp"
+      }),
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.recipe.mealSlots).toEqual(["breakfast", "lunch"]);
+    expect(payload.recipe.imageUrl).toBe("/api/recipe-images/files/thumb.webp");
   });
 
   it("updates recipes with validated meal slots", async () => {
-    const createResponse = await POST(request(recipePayload));
+    const createResponse = await POST(
+      request({
+        ...recipePayload,
+        imageUrl: "/api/recipe-images/files/original.webp"
+      }),
+    );
     const created = await createResponse.json();
 
     const updateResponse = await PUT(
@@ -70,5 +81,23 @@ describe("recipes API route", () => {
     expect(updateResponse.status).toBe(200);
     expect(updated.recipe.title).toBe("Dinner Rice Bowl");
     expect(updated.recipe.mealSlots).toEqual(["dinner"]);
+    expect(updated.recipe.imageUrl).toBe("/api/recipe-images/files/original.webp");
+  });
+
+  it("updates recipe images when imageUrl is included", async () => {
+    const createResponse = await POST(request(recipePayload));
+    const created = await createResponse.json();
+
+    const updateResponse = await PUT(
+      request({
+        ...recipePayload,
+        imageUrl: "/api/recipe-images/files/updated.webp"
+      }),
+      { params: Promise.resolve({ id: created.recipe.id }) },
+    );
+    const updated = await updateResponse.json();
+
+    expect(updateResponse.status).toBe(200);
+    expect(updated.recipe.imageUrl).toBe("/api/recipe-images/files/updated.webp");
   });
 });

@@ -15,6 +15,7 @@ export const recipeInputSchema = z.object({
   rating: z.number().int().min(0).max(5).optional(),
   tags: z.array(z.string().trim().min(1)),
   favorite: z.boolean().optional(),
+  imageUrl: z.string().trim().nullable().optional(),
   provenance: z.enum(["seed", "manual", "url-import", "ai-generated", "web-search"]).default("manual"),
   ingredients: z
     .array(
@@ -68,6 +69,10 @@ export function toSaveRecipeInput(value: z.infer<typeof recipeInputSchema>): Sav
 
   if (value.favorite !== undefined) {
     input.favorite = value.favorite;
+  }
+
+  if (value.imageUrl !== undefined) {
+    input.imageUrl = value.imageUrl || null;
   }
 
   return input;

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
-import { Trash2 } from "lucide-react";
+import Image from "next/image";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Camera, ImageIcon, Link as LinkIcon, Search, Trash2, Upload, X } from "lucide-react";
 
 import { MEAL_SLOTS, type MealSlot, type Recipe } from "@recipai/recipes";
 
@@ -20,6 +21,7 @@ type EditorState = {
   servings: string;
   prepMinutes: string;
   cookMinutes: string;
+  imageUrl: string | null;
   mealSlots: Record<MealSlot, boolean>;
   tags: string;
   ingredients: string;
@@ -47,7 +49,16 @@ export type RecipeEditorDraft = {
   tags: string[];
   ingredients: string[];
   steps: string[];
+  imageUrl?: string | null;
   provenance?: Recipe["provenance"];
+};
+
+type ImageSuggestion = {
+  id: string;
+  imageUrl: string;
+  sourceLabel: string;
+  sourceUrl: string | null;
+  title: string;
 };
 
 const COMMON_UNITS = [
@@ -157,6 +168,7 @@ function stateFromRecipe(
     servings: String(recipe?.servings ?? initialDraft?.servings ?? 4),
     prepMinutes: String(recipe?.prepMinutes ?? initialDraft?.prepMinutes ?? 10),
     cookMinutes: String(recipe?.cookMinutes ?? initialDraft?.cookMinutes ?? 20),
+    imageUrl: recipe?.imageUrl ?? initialDraft?.imageUrl ?? null,
     mealSlots: Object.fromEntries(
       MEAL_SLOTS.map((slot) => [
         slot,
@@ -206,11 +218,24 @@ export function RecipeEditor({
   const [ingredientRows, setIngredientRows] = useState(() =>
     ingredientRowsFromText(state.ingredients),
   );
+  const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+  const [imageSuggestions, setImageSuggestions] = useState<ImageSuggestion[]>(
+    [],
+  );
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isImageWorking, setIsImageWorking] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   function update(key: keyof EditorState, value: string) {
     setState((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateImageUrl(imageUrl: string | null) {
+    setState((current) => ({ ...current, imageUrl }));
   }
 
   function updateIngredientText(value: string) {
@@ -290,6 +315,121 @@ export function RecipeEditor({
     }));
   }
 
+  async function uploadImageFile(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    setImageError(null);
+    setIsImageWorking(true);
+
+    try {
+      const formData = new FormData();
+      formData.set("image", file);
+
+      const response = await fetch("/api/recipe-images/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as {
+        imageUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.imageUrl) {
+        throw new Error(payload.error ?? "Image could not be uploaded.");
+      }
+
+      updateImageUrl(payload.imageUrl);
+      setIsImagePickerOpen(false);
+    } catch (caught) {
+      setImageError(
+        caught instanceof Error ? caught.message : "Image could not be uploaded.",
+      );
+    } finally {
+      setIsImageWorking(false);
+    }
+  }
+
+  async function handleImageInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    await uploadImageFile(file);
+  }
+
+  async function importImageUrl(imageUrl: string) {
+    setImageError(null);
+    setIsImageWorking(true);
+
+    try {
+      const response = await fetch("/api/recipe-images/from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
+      const payload = (await response.json()) as {
+        imageUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.imageUrl) {
+        throw new Error(payload.error ?? "Image URL could not be imported.");
+      }
+
+      updateImageUrl(payload.imageUrl);
+      setImageUrlInput("");
+      setIsImagePickerOpen(false);
+    } catch (caught) {
+      setImageError(
+        caught instanceof Error
+          ? caught.message
+          : "Image URL could not be imported.",
+      );
+    } finally {
+      setIsImageWorking(false);
+    }
+  }
+
+  async function searchImageSuggestions() {
+    const query = state.title.trim();
+
+    if (!query) {
+      setImageError("Enter a title before searching for image options.");
+      return;
+    }
+
+    setImageError(null);
+    setIsImageWorking(true);
+
+    try {
+      const response = await fetch(
+        `/api/recipe-images/search?q=${encodeURIComponent(query)}`,
+      );
+      const payload = (await response.json()) as {
+        images?: ImageSuggestion[];
+        error?: string;
+      };
+
+      if (!response.ok || !payload.images) {
+        throw new Error(payload.error ?? "Image search could not be completed.");
+      }
+
+      setImageSuggestions(payload.images);
+
+      if (payload.images.length === 0) {
+        setImageError("No image options found for this recipe title.");
+      }
+    } catch (caught) {
+      setImageError(
+        caught instanceof Error
+          ? caught.message
+          : "Image search could not be completed.",
+      );
+    } finally {
+      setIsImageWorking(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -310,6 +450,7 @@ export function RecipeEditor({
         .map((tag) => tag.trim())
         .filter(Boolean),
       favorite: recipe?.favorite ?? false,
+      imageUrl: state.imageUrl,
       provenance: recipe?.provenance ?? initialDraft?.provenance ?? "manual",
       ingredients: ingredientRows
         .filter((row) => row.name.trim())
@@ -357,6 +498,145 @@ export function RecipeEditor({
           <strong>Save failed</strong>
           <p>{error}</p>
         </div>
+      ) : null}
+      <section className="recipe-image-field" aria-label="Thumbnail">
+        <h3>Thumbnail</h3>
+        <div className="recipe-image-editor">
+          <button
+            aria-expanded={isImagePickerOpen}
+            className="recipe-image-button"
+            onClick={() => setIsImagePickerOpen((value) => !value)}
+            type="button"
+          >
+            {state.imageUrl ? (
+              <Image
+                alt=""
+                height={74}
+                src={state.imageUrl}
+                style={{ height: 74, objectFit: "cover", width: 74 }}
+                unoptimized
+                width={74}
+              />
+            ) : (
+              <span className="recipe-image-empty">
+                <ImageIcon aria-hidden="true" size={28} />
+              </span>
+            )}
+            <span>
+              {state.imageUrl ? "Change thumbnail" : "Add thumbnail"}
+            </span>
+          </button>
+          {state.imageUrl ? (
+            <button
+              className="recipe-image-remove"
+              onClick={() => updateImageUrl(null)}
+              type="button"
+            >
+              <X aria-hidden="true" size={16} />
+              Remove
+            </button>
+          ) : null}
+        </div>
+      </section>
+      {isImagePickerOpen ? (
+        <section className="recipe-image-picker" aria-label="Recipe thumbnail picker">
+          {imageError ? <p className="image-picker-error">{imageError}</p> : null}
+          <div className="image-picker-actions">
+            <button
+              disabled={isImageWorking}
+              onClick={() => void searchImageSuggestions()}
+              type="button"
+            >
+              <Search aria-hidden="true" size={17} />
+              Search title
+            </button>
+            <button
+              disabled={isImageWorking}
+              onClick={() => cameraInputRef.current?.click()}
+              type="button"
+            >
+              <Camera aria-hidden="true" size={17} />
+              Camera
+            </button>
+            <button
+              disabled={isImageWorking}
+              onClick={() => uploadInputRef.current?.click()}
+              type="button"
+            >
+              <Upload aria-hidden="true" size={17} />
+              Upload
+            </button>
+          </div>
+          <input
+            ref={cameraInputRef}
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={(event) => void handleImageInputChange(event)}
+            type="file"
+          />
+          <input
+            ref={uploadInputRef}
+            accept="image/*"
+            hidden
+            onChange={(event) => void handleImageInputChange(event)}
+            type="file"
+          />
+          {imageSuggestions.length > 0 ? (
+            <div className="image-suggestion-grid">
+              {imageSuggestions.map((suggestion, index) => (
+                <button
+                  disabled={isImageWorking}
+                  key={suggestion.id}
+                  onClick={() => void importImageUrl(suggestion.imageUrl)}
+                  type="button"
+                >
+                  <Image
+                    alt=""
+                    height={82}
+                    priority={index === 0}
+                    src={suggestion.imageUrl}
+                    style={{ height: "auto", objectFit: "cover", width: "100%" }}
+                    unoptimized
+                    width={96}
+                  />
+                  <span>{suggestion.sourceLabel}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="image-url-import">
+            <label>
+              Image URL
+              <input
+                inputMode="url"
+                onChange={(event) => setImageUrlInput(event.target.value)}
+                placeholder="https://example.com/photo.jpg"
+                value={imageUrlInput}
+              />
+            </label>
+            {imageUrlInput ? (
+              <div className="image-url-preview">
+                <Image
+                  alt=""
+                  height={64}
+                  src={imageUrlInput}
+                  style={{ height: 64, objectFit: "cover", width: 72 }}
+                  unoptimized
+                  width={72}
+                />
+                <button
+                  disabled={isImageWorking}
+                  onClick={() => void importImageUrl(imageUrlInput)}
+                  type="button"
+                >
+                  <LinkIcon aria-hidden="true" size={17} />
+                  Use URL
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
       ) : null}
       <label>
         Title
