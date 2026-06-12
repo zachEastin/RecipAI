@@ -115,6 +115,12 @@ describe("recipe image API routes", () => {
                 strMeal: "Chicken Pasta",
                 strMealThumb: "https://www.themealdb.com/chicken.jpg",
                 strSource: "https://www.themealdb.com/meal"
+              },
+              {
+                idMeal: "52773",
+                strMeal: "Chicken Curry",
+                strMealThumb: "https://www.themealdb.com/curry.jpg",
+                strSource: "https://www.themealdb.com/curry"
               }
             ]
           });
@@ -129,6 +135,14 @@ describe("recipe image API routes", () => {
               photographer_url: "https://www.pexels.com/@cook",
               url: "https://www.pexels.com/photo/chicken-pasta",
               src: { large: "https://images.pexels.com/photos/123/large.jpg" }
+            },
+            {
+              id: 456,
+              alt: "Chicken dinner",
+              photographer: "Another Cook",
+              photographer_url: "https://www.pexels.com/@another",
+              url: "https://www.pexels.com/photo/chicken-dinner",
+              src: { large: "https://images.pexels.com/photos/456/large.jpg" }
             }
           ]
         });
@@ -151,6 +165,14 @@ describe("recipe image API routes", () => {
         id: "pexels-123",
         source: "pexels",
         sourceLabel: "Pexels · A Cook"
+      }),
+      expect.objectContaining({
+        id: "mealdb-52773",
+        source: "mealdb"
+      }),
+      expect.objectContaining({
+        id: "pexels-456",
+        source: "pexels"
       })
     ]);
   });

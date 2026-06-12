@@ -256,5 +256,21 @@ export async function searchRecipeImageSuggestions(query: string): Promise<Recip
     searchPexelsImages(trimmed)
   ]);
 
-  return [...mealDbSuggestions, ...pexelsSuggestions].slice(0, 12);
+  const suggestions: RecipeImageSuggestion[] = [];
+  const maxLength = Math.max(mealDbSuggestions.length, pexelsSuggestions.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const mealDbSuggestion = mealDbSuggestions[index];
+    const pexelsSuggestion = pexelsSuggestions[index];
+
+    if (mealDbSuggestion) {
+      suggestions.push(mealDbSuggestion);
+    }
+
+    if (pexelsSuggestion) {
+      suggestions.push(pexelsSuggestion);
+    }
+  }
+
+  return suggestions.slice(0, 12);
 }
