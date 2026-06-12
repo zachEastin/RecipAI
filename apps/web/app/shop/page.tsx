@@ -4,6 +4,8 @@ import { getLatestShoppingList } from "@recipai/db";
 import { defaultDinnerPlanRange } from "@recipai/meal-planning";
 import { openAppDatabase } from "@/lib/server-db";
 
+export const dynamic = "force-dynamic";
+
 export default function ShopPage() {
   const range = defaultDinnerPlanRange();
   const db = openAppDatabase();
