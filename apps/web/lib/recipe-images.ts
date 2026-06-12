@@ -15,6 +15,11 @@ export type RecipeImageSuggestion = {
   title: string;
 };
 
+export type RecipeImageSearchDebug = {
+  pexelsConfigured: boolean;
+  sourceCounts: Record<RecipeImageSuggestion["source"], number>;
+};
+
 type MealDbMeal = {
   idMeal: string;
   strMeal: string;
@@ -244,6 +249,11 @@ async function searchPexelsImages(query: string): Promise<RecipeImageSuggestion[
   })).filter((suggestion) => suggestion.imageUrl);
 }
 
+export function isPexelsImageSearchConfigured(): boolean {
+  loadLocalEnv();
+  return Boolean(process.env.PEXELS_API_KEY?.trim());
+}
+
 export async function searchRecipeImageSuggestions(query: string): Promise<RecipeImageSuggestion[]> {
   const trimmed = query.trim();
 
@@ -273,4 +283,14 @@ export async function searchRecipeImageSuggestions(query: string): Promise<Recip
   }
 
   return suggestions.slice(0, 12);
+}
+
+export function recipeImageSearchDebug(images: RecipeImageSuggestion[]): RecipeImageSearchDebug {
+  return {
+    pexelsConfigured: isPexelsImageSearchConfigured(),
+    sourceCounts: {
+      mealdb: images.filter((image) => image.source === "mealdb").length,
+      pexels: images.filter((image) => image.source === "pexels").length
+    }
+  };
 }
